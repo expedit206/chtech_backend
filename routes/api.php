@@ -146,5 +146,12 @@ Route::post('/upgrade-to-premium', [SubscriptionController::class, 'upgradeToPre
     Route::put('/jeton_market/updateOffer/{id}', [OfferController::class, 'updateOffer']);
     
     Route::delete('/jeton_market/deleteOffer/{id}', [OfferController::class, 'destroyOffer']);
+
+    // Redirection vers Google
+    
     
 });
+Route::get('/auth/google', [UserController::class, 'redirectToGoogle'])->name('google.login');
+
+// Callback de Google (après connexion)
+Route::get('/auth/google/callback', [UserController::class, 'handleGoogleCallback'])->name('google.callback');
