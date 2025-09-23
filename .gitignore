@@ -1,13 +1,9 @@
 *.log
 .DS_Store
-<<<<<<< HEAD
 .env
-=======
-# .env
->>>>>>> b87b3b2 (de nouveau)
 .envl
 .envp
-.htaccess
+# .htaccess
 .env.backup
 .env.production
 .phpactor.json
