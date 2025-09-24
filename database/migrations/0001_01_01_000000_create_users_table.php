@@ -26,6 +26,7 @@ class CreateUsersTable extends Migration
                 ->nullable()
                 ->constrained('users')
                 ->nullOnDelete();
+            $table->string('google_id')->nullable()->unique();
 
             $table->unsignedInteger('jetons')->default(0);
             $table->decimal('solde', 10, 2)->default(0);
