@@ -13,7 +13,7 @@ class CreateUsersTable extends Migration
             $table->id();
             $table->string('nom');
             $table->string('email')->nullable()->unique();
-            $table->string('telephone')->unique();
+            $table->string('telephone')->unique()-> nullable();
             $table->string('parrainage_code', 50)->nullable()->unique();
             $table->string('ville')->nullable();
             $table->string('mot_de_passe');
