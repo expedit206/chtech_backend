@@ -76,7 +76,7 @@ class CommercantController extends Controller
                     //     $constraint->aspectRatio();
                     //     $constraint->upsize();
                     // })
-                    ->encodeByExtension('jpg', quality: 10);
+                    ->encodeByExtension('jpg', quality: 20);
                 $image->save($destinationPath . '/' . $filename);
 
                 $photos[] = asset('storage/produits/' . $filename);
