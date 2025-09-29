@@ -28,7 +28,7 @@ class ParrainageController extends Controller
             return [
                 'filleul_nom' => $filleul->nom,
                 'date_inscription' => $filleul->created_at,
-                'est_commercant' => $filleul->commercant->email_verified_at ? true : false,
+                'est_commercant' => $filleul->commercant?->email_verified_at ? true : false,
                 'id' => $filleul->commercant ? $filleul->commercant->id : $filleul->id,
             ];
         });
