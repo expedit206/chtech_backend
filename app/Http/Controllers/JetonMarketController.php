@@ -82,33 +82,33 @@ class JetonMarketController extends Controller
         $nonce = RandomGenerator::nonce();
 
 
-        // $paymentResponse = $mesomb->makeCollect([
-        //     'amount' => $montantTotal,
-        //     'service' => $paymentService,
-        //     'payer' => $phoneNumber,
-        //     'nonce' => $nonce,
-        // ]);
+        $paymentResponse = $mesomb->makeCollect([
+            'amount' => $montantTotal,
+            'service' => $paymentService,
+            'payer' => $phoneNumber,
+            'nonce' => $nonce,
+        ]);
 
 
-        // if (!$paymentResponse->isOperationSuccess()) {
-        //     // Enregistrer l'échec de la transaction
-        //     JetonTrade::create([
-        //         'vendeur_id' => $offer->user_id,
-        //         'acheteur_id' => $acheteur->id,
-        //         'offer_id' => $offer->id,
-        //         'nombre_jetons' => $offer->nombre_jetons,
-        //         'montant_total' => $montantTotal,
-        //         'commission_plateforme' => $commission,
-        //         'montant_net_vendeur' => $montantNet,
-        //         'methode_paiement' => 'mesomb',
-        //         'transaction_id_mesomb_vendeur' => null,
-        //         'transaction_id_mesomb_plateforme' => null,
-        //         'statut' => 'echec',
-        //         'date_transaction' => now(),
-        //     ]);
+        if (!$paymentResponse->isOperationSuccess()) {
+            // Enregistrer l'échec de la transaction
+            JetonTrade::create([
+                'vendeur_id' => $offer->user_id,
+                'acheteur_id' => $acheteur->id,
+                'offer_id' => $offer->id,
+                'nombre_jetons' => $offer->nombre_jetons,
+                'montant_total' => $montantTotal,
+                'commission_plateforme' => $commission,
+                'montant_net_vendeur' => $montantNet,
+                'methode_paiement' => 'mesomb',
+                'transaction_id_mesomb_vendeur' => null,
+                'transaction_id_mesomb_plateforme' => null,
+                'statut' => 'echec',
+                'date_transaction' => now(),
+            ]);
 
-        //     return response()->json(['message' => 'Échec du paiement : vérifiez vos informations'], 400);
-        // }
+            return response()->json(['message' => 'Échec du paiement : vérifiez vos informations'], 400);
+        }
 
         // Transférer le montant net au vendeur (après déduction de la commission) via son portefeuille
         $depositNonce = RandomGenerator::nonce();
