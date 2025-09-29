@@ -143,12 +143,10 @@ class ParrainageController extends Controller
         }
 
         $user->update(['parrainage_code' => $customCode]);
-        $link = url('/invite/' . $customCode);
 
         return response()->json([
             'message' => 'Code de parrainage créé avec succès',
             'code' => $customCode,
-            'link' => $link,
         ]);
     }
 
