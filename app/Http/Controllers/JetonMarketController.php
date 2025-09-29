@@ -164,7 +164,7 @@ class JetonMarketController extends Controller
         // Le vendeur reçoit l'argent via MeSomb, pas besoin d'ajuster ses jetons ici
 
         // Supprimer l'offre
-        $offer->statut('vendu');
+        $offer->statut='vendu';
 $offer->save();
         return response()->json(['message' => 'Achat réussi', 'trade' => $trade], 200);
     }
