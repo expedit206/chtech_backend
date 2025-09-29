@@ -26,7 +26,7 @@ class CheckPremiumLimits
 
             case 'collaboration':
                 $collaborationCount = $user->collaborations()->count(); // À adapter selon votre modèle
-                if (!$user->premium && $collaborationCount >= 50) {
+                if (!$user->premium && $collaborationCount >= 30) {
                     return response()->json(['message' => 'Limite de 50 collaborations atteinte. Passez à Premium pour plus.'], 403);
                 }
                 break;

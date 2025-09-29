@@ -16,7 +16,7 @@ class ChatController extends Controller
     /**
      * Récupérer la liste des conversations de l'utilisateur connecté
      */
-    public function conversations(Request $request)
+   public function conversations(Request $request)
     {
         $user = $request->user();
 
@@ -24,6 +24,7 @@ class ChatController extends Controller
             return response()->json(['message' => 'Utilisateur non authentifié'], 401);
         }
 
+        // Récupérer les conversations existantes
         $conversations = Message::where('sender_id', $user->id)
             ->orWhere('receiver_id', $user->id)
             ->selectRaw('LEAST(sender_id, receiver_id) as user1, GREATEST(sender_id, receiver_id) as user2')
@@ -58,9 +59,48 @@ class ChatController extends Controller
             })
             ->sortByDesc(function ($conversation) {
                 return $conversation['updated_at'];
-            });
+            })
+            ->values();
 
-        return response()->json(['conversations' => $conversations->values()]);
+        // Ajouter la conversation avec le service client (ID 3)
+        $serviceClientId = 3;
+        $isServiceClientConversation = $conversations->firstWhere('user_id', $serviceClientId) === null;
+
+        if ($isServiceClientConversation) {
+            $serviceClient = User::with('commercant')->find($serviceClientId);
+
+            // Récupérer le dernier message avec le service client
+            $lastMessageWithService = Message::where(function ($q) use ($user, $serviceClientId) {
+                $q->where('sender_id', $user->id)->where('receiver_id', $serviceClientId);
+            })->orWhere(function ($q) use ($user, $serviceClientId) {
+                $q->where('sender_id', $serviceClientId)->where('receiver_id', $user->id);
+            })->latest()->first();
+
+            // Calculer le nombre de messages non lus avec le service client
+            $unreadCountWithService = Message::where('receiver_id', $user->id)
+                ->where('sender_id', $serviceClientId)
+                ->where('is_read', false)
+                ->count();
+
+            $serviceClientConversation = [
+                'user_id' => $serviceClientId,
+                'name' => $serviceClient ? $serviceClient->nom : 'Service Client',
+                'last_message' => $lastMessageWithService->content ?? 'ecrivez moi pour tout besoin',
+                'updated_at' => $lastMessageWithService->updated_at ?? now(),
+                'unread_count' => $unreadCountWithService,
+                'is_commercant' => $serviceClient->commercant ? true : false,
+                'profile_photo' => $serviceClient->photo ?? null, // Image par défaut si absente
+            ];
+
+            $conversations->push($serviceClientConversation);
+        }
+
+        // Trier à nouveau après avoir ajouté la conversation du service client
+        $conversations = $conversations->sortByDesc(function ($conversation) {
+            return $conversation['updated_at'];
+        })->values();
+
+        return response()->json(['conversations' => $conversations]);
     }
 
     /**

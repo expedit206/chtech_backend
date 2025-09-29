@@ -33,13 +33,23 @@ class OfferController extends Controller
 
         $user = Auth::user();
         $totalPrice = $validated['nombre_jetons'] * $validated['prix_unitaire'];
-
+$nombre_jetons = $validated['nombre_jetons'];
         // Vérifier que le wallet appartient à l'utilisateur
         $wallet = Wallet::where('id', $validated['wallet_id'])->where('user_id', $user->id)->firstOrFail();
 
+        // Vérifier si l'utilisateur a assez de jetons dans users.jetons
+        if ($user->jetons < $nombre_jetons) {
+            return response()->json(['message' => 'Solde de jetons insuffisant pour créer cette offre.'], 400);
+        }
+
+        // Déduire les jetons du champ jetons de l'utilisateur
+        $user->jetons -= $nombre_jetons;
+        $user->save();
+
+        // Créer l'offre
         $offer = JetonOffer::create([
             'user_id' => $user->id,
-            'nombre_jetons' => $validated['nombre_jetons'],
+            'nombre_jetons' => $nombre_jetons,
             'prix_unitaire' => $validated['prix_unitaire'],
             'total_prix' => $totalPrice,
             'description' => $validated['description'],
