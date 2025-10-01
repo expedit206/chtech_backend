@@ -86,7 +86,7 @@ class ProduitController extends Controller
                     LEAST(1, (boosts.target_views - COALESCE(product_counts.views_count, 0)) / boosts.target_views)
                 ELSE 0 END
             ) +
-            0.40 * (1 / (DATEDIFF(NOW(), produits.created_at)/15  + 1)) + -- max = 0.35
+            0.40 * (1 / (DATEDIFF(NOW(), produits.created_at)/30  + 1)) + -- max = 0.35
             0.20 * (
                 CASE WHEN produits.category_id IN ($favoriteCategoryList)
                 THEN 1 ELSE 0 END
@@ -196,7 +196,7 @@ class ProduitController extends Controller
                     LEAST(1, (boosts.target_views - COALESCE(product_counts.views_count, 0)) / boosts.target_views)
                 ELSE 0 END
             ) +
-            0.50 * (1 / (DATEDIFF(NOW(), produits.created_at)/15 + 1)) -- priorité aux récents (réparti 0.45 + 0.15)
+            0.50 * (1 / (DATEDIFF(NOW(), produits.created_at)/30 + 1)) -- priorité aux récents (réparti 0.45 + 0.15)
         ), 1) as score
     ")
     ->withCasts(['score' => 'float']);
