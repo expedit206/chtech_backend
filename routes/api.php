@@ -51,7 +51,6 @@ Route::get('/categories', [CategoryController::class, 'index'])->name('categorie
     
     Route::middleware('auth:sanctum')->group(function () {
     Route::get('produits', [ProduitController::class, 'index']);
-        Route::post('/record_view', [ProduitController::class, 'recordView']);
 
 
 
@@ -84,7 +83,7 @@ Route::get('/categories', [CategoryController::class, 'index'])->name('categorie
     Route::get('/commercant/profil', [CommercantController::class, 'profil'])->name('commercant.profil');
     Route::post('/commercant/update', [CommercantController::class, 'updateProfil'])->name('commercant.profil.update');
     Route::post('/commercant/produits/{id}', [CommercantController::class, 'updateProduit'])->name('commercant.produits.update');
-    Route::get('/commercant/{commercant}', [CommercantController::class, 'show'])->name('commercant.show');
+    // Route::get('/commercant/{commercant}', [CommercantController::class, 'show'])->name('commercant.show');
     Route::post('/commercant/{commercantId}/rate', [CommercantController::class, 'rate']);
     
     Route::post('/commercant/verify-email', [CommercantController::class, 'verifyEmail']);
@@ -98,7 +97,7 @@ Route::get('/categories', [CategoryController::class, 'index'])->name('categorie
     Route::get('/user/parrainage', [UserController::class, 'getParrainage']);
 
 
-    Route::post('/produits/{id}/favorite', [ProduitController::class, 'toggleFavorite']);
+    Route::post('/produits/{id}/favorite', [ProduitController::class, 'favorite']);
     Route::get('/produits/{produit}', [ProduitController::class, 'show'])->name('produits.show');
 
 
@@ -123,14 +122,12 @@ Route::get('/categories', [CategoryController::class, 'index'])->name('categorie
 
 Route::post('/upgrade-to-premium', [SubscriptionController::class, 'upgradeToPremium']);
 
-    Route::get('/profile/public/{id}', [ProfileController::class, 'publicProfile']);
     Route::post('/updateProfile', [ProfileController::class, 'updateProfile']);
 
     Route::post('/acheter-jetons', [JetonController::class, 'acheterJetons']);
 
     Route::get('/jeton-transactions/{userId}', [JetonController::class, 'getUserTransactions']);
 
-    Route::get('/jeton_market/offers', [JetonMarketController::class, 'index']);
     Route::post('/jeton_market/buy/{offer_id}', [JetonMarketController::class, 'buy']);
     
     
@@ -150,8 +147,23 @@ Route::post('/upgrade-to-premium', [SubscriptionController::class, 'upgradeToPre
     // Redirection vers Google
     
     
+    Route::post('/record_view', [ProduitController::class, 'recordView']);
 });
+Route::get('/commercant/{commercant}', [CommercantController::class, 'show'])->name('commercant.show');
+
+
+
+    Route::get('/profile/public/{id}', [ProfileController::class, 'publicProfile']);
+
+
+Route::post('/public-record-view', [ProduitController::class, 'publicRecordView']); // Nouvelle route publique
+Route::get('/public-produits/{produit}', [ProduitController::class, 'publicShow']); // Route publique
+
+Route::get('/public-produits', [ProduitController::class, 'publicIndex']); // Nouvelle route publique
+
 Route::get('/auth/google', [UserController::class, 'redirectToGoogle'])->name('google.login');
 
 // Callback de Google (après connexion)
 Route::get('/auth/google/callback', [UserController::class, 'handleGoogleCallback'])->name('google.callback');
+
+    Route::get('/jeton_market/offers', [JetonMarketController::class, 'index']);

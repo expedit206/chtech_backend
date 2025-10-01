@@ -4,7 +4,7 @@ use Laravel\Sanctum\Sanctum;
 
 return [
 
-    'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', 'localhost,127.0.0.1,espacecameroun.com')),
+        'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', 'localhost,127.0.0.1,espacecameroun.com')),
     'guard' => ['api'], // Utiliser le guard 'api' pour les tokens Bearer
     'expiration' => null,
     'middleware' => [

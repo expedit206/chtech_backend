@@ -195,6 +195,8 @@ class CommercantController extends Controller
         ]);
     }
 
+    
+
     public function rate(Request $request, $id)
     {
         $commercant = Commercant::findOrFail($id);

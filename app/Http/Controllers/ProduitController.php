@@ -78,23 +78,23 @@ class ProduitController extends Controller
         // Calcul du score (ajout du poids pour catégorie favorite + boost du facteur nouveauté)
         $query->select('produits.*')
         ->selectRaw("
-    COALESCE(product_counts.views_count, 0) as raw_views_count,
-    COALESCE(product_counts.favorites_count, 0) as favorites_count,
-    (
-        0.20 * COALESCE(product_counts.views_count, 0) + 
-        0.20 * COALESCE(product_counts.favorites_count, 0) + 
-        0.20 * (
-            CASE WHEN boosts.id IS NOT NULL AND boosts.target_views > 0 THEN
-                LEAST(1, (boosts.target_views - COALESCE(product_counts.views_count, 0)) / boosts.target_views)
-            ELSE 0 END
-        ) +
-        0.20 * (1 / (DATEDIFF(NOW(), produits.created_at) / 365 + 1)) + 
-        0.20 * (
-            CASE WHEN produits.category_id IN ($favoriteCategoryList)
-            THEN 1 ELSE 0 END
-        )
-    ) as score
-")
+        COALESCE(product_counts.views_count, 0) as raw_views_count,
+        COALESCE(product_counts.favorites_count, 0) as favorites_count,
+        (
+            0.20 * COALESCE(product_counts.views_count, 0) + 
+            0.20 * COALESCE(product_counts.favorites_count, 0) + 
+            0.20 * (
+                CASE WHEN boosts.id IS NOT NULL AND boosts.target_views > 0 THEN
+                    LEAST(1, (boosts.target_views - COALESCE(product_counts.views_count, 0)) / boosts.target_views)
+                ELSE 0 END
+            ) +
+            0.20 * (1 / (DATEDIFF(NOW(), produits.created_at) / 365 + 1)) + 
+            0.20 * (
+                CASE WHEN produits.category_id IN ($favoriteCategoryList)
+                THEN 1 ELSE 0 END
+            )
+        ) as score
+       ")
 
             ->withCasts(['score' => 'float']);
 
@@ -148,6 +148,107 @@ class ProduitController extends Controller
         return response()->json($produits);
     }
 
+    public function publicIndex(Request $request)
+    {
+        $sort = $request->query('sort', 'default');
+        $perPage = $request->query('per_page', 5) === 'all' ? null : (int)$request->query('per_page', 10);
+        $search = $request->query('search');
+        $category = $request->query('category');
+        $prixMin = $request->query('prix_min');
+        $prixMax = $request->query('prix_max');
+        $ville = $request->query('ville');
+        $collaboratif = filter_var($request->query('collaboratif'), FILTER_VALIDATE_BOOLEAN, ['default' => null]);
+        $page = (int)$request->query('page', 1);
+
+        // Construction de la requête
+        $query = Produit::query()
+            ->with(['commercant', 'category', 'counts', 'boosts' => function ($q) {
+                $q->where('statut', 'actif');
+            }])
+            ->leftJoin('product_counts', 'product_counts.produit_id', '=', 'produits.id')
+            ->leftJoin('boosts', function ($join) {
+                $join->on('boosts.produit_id', '=', 'produits.id')
+                    ->where('boosts.statut', 'actif');
+            })
+            ;
+            
+            // Filtres (accessibles à tous)
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                $q->where('nom', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+        if ($category) $query->where('category_id', $category);
+        if ($prixMin) $query->where('prix', '>=', (float)$prixMin);
+        if ($prixMax) $query->where('prix', '<=', (float)$prixMax);
+        if ($ville) $query->where('ville', $ville);
+        // if ($collaboratif !== null) $query->where('collaboratif', $collaboratif);
+        if ($request->collaboratif) $query->where('collaboratif', $collaboratif);
+
+        // return response()->json($query->get());
+
+        // Calcul du score (basé sur données publiques)
+        $query->select('produits.*')
+            ->selectRaw("
+                COALESCE(product_counts.views_count, 0) as raw_views_count,
+                COALESCE(product_counts.favorites_count, 0) as favorites_count,
+                (
+                    0.25 * COALESCE(product_counts.views_count, 0) + 
+                    0.25 * COALESCE(product_counts.favorites_count, 0) + 
+                    0.25 * (
+                        CASE WHEN boosts.id IS NOT NULL AND boosts.target_views > 0 THEN
+                            LEAST(1, (boosts.target_views - COALESCE(product_counts.views_count, 0)) / boosts.target_views)
+                        ELSE 0 END
+                    ) +
+                    0.25 * (1 / (DATEDIFF(NOW(), produits.created_at) / 365 + 1))
+                ) as score
+            ")
+            ->withCasts(['score' => 'float']);
+
+        // Tri par score par défaut (pas de pénalité vue sans utilisateur)
+        $query->orderBy('score', 'desc');
+
+        // Tri supplémentaire
+        switch ($sort) {
+            case 'popular':
+                $query->orderBy('raw_views_count', 'desc');
+                break;
+            case 'favorites':
+                $query->orderBy('favorites_count', 'desc')->orderBy('score', 'desc');
+                break;
+            default:
+                $query->orderBy('score', 'desc')->orderBy('favorites_count', 'desc');
+                break;
+        }
+
+        // Pagination
+        $produits = $perPage === null
+            ? $query->get()
+            : $query->paginate($perPage, ['*'], 'page', $page);
+        // return response()->json($query->get());
+
+        // Ajouter propriétés non dépendantes de l'utilisateur
+        $collection = $perPage === null ? $produits : $produits->getCollection();
+        $collection->each(function ($produit) {
+            // Vérifier si le boost est encore actif
+            $boost = $produit->boosts->first();
+            $produit->boosted = $boost && ($produit->counts->views_count ?? 0) < ($boost->target_views ?? 0);
+            unset($produit->boosts);
+        });
+
+        // Désactiver les boosts atteints
+        $activeBoosts = Boost::where('statut', 'actif')->get();
+        foreach ($activeBoosts as $boost) {
+            $produit = Produit::with('counts')->find($boost->produit_id);
+            if ($produit && $produit->counts && $produit->counts->views_count >= ($boost->target_views ?? 0)) {
+                $boost->update(['statut' => 'inactif']);
+            }
+        }
+
+        return response()->json($produits);
+    }
+
 
 
 
@@ -184,6 +285,40 @@ class ProduitController extends Controller
         $produit->boosted_until = $produit->boosts->first()?->end_date;
 
         return response()->json(['produit' => $produit->load('counts')]);
+    }
+
+
+public function publicShow($id, Request $request)
+    {
+        // Récupérer le produit sans dépendre de l'utilisateur
+        $produit = Produit::with(['commercant.user', 'category'])
+            ->with('counts')
+            ->findOrFail($id);
+
+        // Ajouter uniquement les propriétés publiques
+        $produit->commercant->rating = $produit->commercant->average_rating; // Attribut calculé
+        $produit->boosted_until = $produit->boosts->first()?->end_date;
+        $produit->is_favorited_by = false; // Par défaut pour les non-connectés
+
+        return response()->json(['produit' => $produit->load('counts')]);
+    }
+
+   public function publicRecordView(Request $request)
+    {
+        $validated = $request->validate([
+            'product_id' => 'required|uuid|exists:produits,id',
+        ]);
+
+        $produitId = $validated['product_id'];
+        $produit = Produit::findOrFail($produitId);
+
+        // Incrémenter views_count pour les non-connectés
+        $produit->counts()->updateOrCreate(
+            ['produit_id' => $produitId],
+            ['views_count' => \DB::raw('views_count + 1')]
+        );
+
+        return response()->json(['message' => 'Vue enregistrée']);
     }
 
     public function recordView(Request $request)
@@ -238,7 +373,10 @@ class ProduitController extends Controller
     }
 
 
-    public function toggleFavorite($id, Request $request)
+    
+
+
+    public function Favorite($id, Request $request)
     {
         // Validation de l'ID
         $produit = Produit::findOrFail($id);
