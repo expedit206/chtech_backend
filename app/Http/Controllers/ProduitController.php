@@ -74,26 +74,26 @@ class ProduitController extends Controller
     if ($request->collaboratif) $query->where('collaboratif', $collaboratif);
 
     // Calcul du score révisé : plus de poids à la nouveauté
-    $query->select('produits.*')
-        ->selectRaw("
-            COALESCE(product_counts.views_count, 0) as raw_views_count,
-            COALESCE(product_counts.favorites_count, 0) as favorites_count,
-            (
-                0.15 * LEAST(COALESCE(product_counts.views_count, 0), 1000) +  -- Limite à 1000 vues pour éviter domination
-                0.15 * LEAST(COALESCE(product_counts.favorites_count, 0), 100) + -- Limite à 100 favoris
-                0.20 * (
-                    CASE WHEN boosts.id IS NOT NULL AND boosts.target_views > 0 THEN
-                        LEAST(1, (boosts.target_views - COALESCE(product_counts.views_count, 0)) / boosts.target_views)
-                    ELSE 0 END
-                ) +
-                0.35 * (1 / (DATEDIFF(NOW(), produits.created_at)  + 1)) + -- Plus d'impact sur 30 jours
-                0.15 * (
-                    CASE WHEN produits.category_id IN ($favoriteCategoryList)
-                    THEN 1 ELSE 0 END
-                )
-            ) as score
-        ")
-            ->withCasts(['score' => 'float']);
+   $query->select('produits.*')
+    ->selectRaw("
+        COALESCE(product_counts.views_count, 0) as raw_views_count,
+        COALESCE(product_counts.favorites_count, 0) as favorites_count,
+        LEAST((
+            0.10 * LEAST(COALESCE(product_counts.views_count, 0), 1000) / 1000 + -- normalisé sur 1000
+            0.10 * LEAST(COALESCE(product_counts.favorites_count, 0), 100) / 100 + -- normalisé sur 100
+            0.20 * (
+                CASE WHEN boosts.id IS NOT NULL AND boosts.target_views > 0 THEN
+                    LEAST(1, (boosts.target_views - COALESCE(product_counts.views_count, 0)) / boosts.target_views)
+                ELSE 0 END
+            ) +
+            0.45 * (1 / (DATEDIFF(NOW(), produits.created_at)/15  + 1)) + -- max = 0.35
+            0.15 * (
+                CASE WHEN produits.category_id IN ($favoriteCategoryList)
+                THEN 1 ELSE 0 END
+            )
+        ), 1) as score
+    ")
+    ->withCasts(['score' => 'float']);
 
     // Pénalité pour produits déjà vus
     if (!empty($viewedProductIds)) {
