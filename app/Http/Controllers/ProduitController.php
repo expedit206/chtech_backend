@@ -86,7 +86,7 @@ class ProduitController extends Controller
                         LEAST(1, (boosts.target_views - COALESCE(product_counts.views_count, 0)) / boosts.target_views)
                     ELSE 0 END
                 ) +
-                0.35 * (1 / (DATEDIFF(NOW(), produits.created_at) / 30 + 1)) + -- Plus d'impact sur 30 jours
+                0.35 * (1 / (DATEDIFF(NOW(), produits.created_at)  + 1)) + -- Plus d'impact sur 30 jours
                 0.15 * (
                     CASE WHEN produits.category_id IN ($favoriteCategoryList)
                     THEN 1 ELSE 0 END
