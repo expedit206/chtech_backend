@@ -19,135 +19,130 @@ use Illuminate\Support\Facades\Redis;
 
 class ProduitController extends Controller
 {
-    public function index(Request $request)
-    {
-        $user = \Auth::user(); // Utilisateur connecté
-        $sort = $request->query('sort', 'default');
-        $perPage = $request->query('per_page', 5) === 'all' ? null : (int)$request->query('per_page', 10);
-        $search = $request->query('search');
-        $category = $request->query('category');
-        $prixMin = $request->query('prix_min');
-        $prixMax = $request->query('prix_max');
-        $ville = $request->query('ville');
-        $collaboratif = filter_var($request->query('collaboratif'), FILTER_VALIDATE_BOOLEAN, ['default' => null]);
-        $page = (int)$request->query('page', 1);
+   public function index(Request $request)
+{
+    $user = \Auth::user(); // Utilisateur connecté
+    $sort = $request->query('sort', 'default');
+    $perPage = $request->query('per_page', 5) === 'all' ? null : (int)$request->query('per_page', 10);
+    $search = $request->query('search');
+    $category = $request->query('category');
+    $prixMin = $request->query('prix_min');
+    $prixMax = $request->query('prix_max');
+    $ville = $request->query('ville');
+    $collaboratif = filter_var($request->query('collaboratif'), FILTER_VALIDATE_BOOLEAN, ['default' => null]);
+    $page = (int)$request->query('page', 1);
 
-        $query = Produit::query()
-            ->with(['commercant', 'category', 'counts', 'boosts' => function ($q) {
-                $q->where('statut', 'actif');
-            }])
-            ->leftJoin('product_counts', 'product_counts.produit_id', '=', 'produits.id')
-            ->leftJoin('boosts', function ($join) {
-                $join->on('boosts.produit_id', '=', 'produits.id')
-                    ->where('boosts.statut', 'actif');
-            });
+    $query = Produit::query()
+        ->with(['commercant', 'category', 'counts', 'boosts' => function ($q) {
+            $q->where('statut', 'actif');
+        }])
+        ->leftJoin('product_counts', 'product_counts.produit_id', '=', 'produits.id')
+        ->leftJoin('boosts', function ($join) {
+            $join->on('boosts.produit_id', '=', 'produits.id')
+                ->where('boosts.statut', 'actif');
+        });
 
-        // Produits vus et favoris par l'utilisateur
-        $viewedProductIds = $user ? ProductView::where('user_id', $user->id)->pluck('produit_id')->toArray() : [];
-        $favoriteProductIds = $user ? ProductFavorite::where('user_id', $user->id)->pluck('produit_id')->toArray() : [];
+    // Produits vus et favoris par l'utilisateur
+    $viewedProductIds = $user ? ProductView::where('user_id', $user->id)->pluck('produit_id')->toArray() : [];
+    $favoriteProductIds = $user ? ProductFavorite::where('user_id', $user->id)->pluck('produit_id')->toArray() : [];
 
-        // Récupérer les catégories favorites de l'utilisateur
-        // Récupérer les catégories favorites de l'utilisateur
-        $favoriteCategoryIds = $user
-            ? ProductFavorite::where('user_id', $user->id)
+    // Récupérer les catégories favorites de l'utilisateur
+    $favoriteCategoryIds = $user
+        ? ProductFavorite::where('user_id', $user->id)
             ->join('produits', 'produits.id', '=', 'product_favorites.produit_id')
             ->pluck('produits.category_id')
             ->unique()
             ->toArray()
-            : [];
+        : [];
 
-        // Construire la clause IN avec quotes pour UUID
-        $favoriteCategoryList = !empty($favoriteCategoryIds)
-            ? "'" . implode("','", $favoriteCategoryIds) . "'"
-            : "'0'"; // valeur par défaut (ne match rien)
+    // Construire la clause IN avec quotes pour UUID
+    $favoriteCategoryList = !empty($favoriteCategoryIds)
+        ? "'" . implode("','", $favoriteCategoryIds) . "'"
+        : "'0'"; // valeur par défaut (ne match rien)
 
+    // Filtres
+    if ($search) {
+        $query->where(function ($q) use ($search) {
+            $q->where('nom', 'like', "%{$search}%")
+                ->orWhere('description', 'like', "%{$search}%");
+        });
+    }
+    if ($category) $query->where('category_id', $category);
+    if ($prixMin) $query->where('prix', '>=', (float)$prixMin);
+    if ($prixMax) $query->where('prix', '<=', (float)$prixMax);
+    if ($ville) $query->where('ville', $ville);
+    if ($request->collaboratif) $query->where('collaboratif', $collaboratif);
 
-        // Filtres
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('nom', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%");
-            });
-        }
-        if ($category) $query->where('category_id', $category);
-        if ($prixMin) $query->where('prix', '>=', (float)$prixMin);
-        if ($prixMax) $query->where('prix', '<=', (float)$prixMax);
-        if ($ville) $query->where('ville', $ville);
-        if ($request->collaboratif) $query->where('collaboratif', $collaboratif);
-
-        // Calcul du score (ajout du poids pour catégorie favorite + boost du facteur nouveauté)
-        $query->select('produits.*')
+    // Calcul du score révisé : plus de poids à la nouveauté
+    $query->select('produits.*')
         ->selectRaw("
-        COALESCE(product_counts.views_count, 0) as raw_views_count,
-        COALESCE(product_counts.favorites_count, 0) as favorites_count,
-        (
-            0.20 * COALESCE(product_counts.views_count, 0) + 
-            0.20 * COALESCE(product_counts.favorites_count, 0) + 
-            0.20 * (
-                CASE WHEN boosts.id IS NOT NULL AND boosts.target_views > 0 THEN
-                    LEAST(1, (boosts.target_views - COALESCE(product_counts.views_count, 0)) / boosts.target_views)
-                ELSE 0 END
-            ) +
-            0.20 * (1 / (DATEDIFF(NOW(), produits.created_at) / 365 + 1)) + 
-            0.20 * (
-                CASE WHEN produits.category_id IN ($favoriteCategoryList)
-                THEN 1 ELSE 0 END
-            )
-        ) as score
-       ")
-
+            COALESCE(product_counts.views_count, 0) as raw_views_count,
+            COALESCE(product_counts.favorites_count, 0) as favorites_count,
+            (
+                0.15 * LEAST(COALESCE(product_counts.views_count, 0), 1000) +  -- Limite à 1000 vues pour éviter domination
+                0.15 * LEAST(COALESCE(product_counts.favorites_count, 0), 100) + -- Limite à 100 favoris
+                0.20 * (
+                    CASE WHEN boosts.id IS NOT NULL AND boosts.target_views > 0 THEN
+                        LEAST(1, (boosts.target_views - COALESCE(product_counts.views_count, 0)) / boosts.target_views)
+                    ELSE 0 END
+                ) +
+                0.35 * (1 / (DATEDIFF(NOW(), produits.created_at) / 30 + 1)) + -- Plus d'impact sur 30 jours
+                0.15 * (
+                    CASE WHEN produits.category_id IN ($favoriteCategoryList)
+                    THEN 1 ELSE 0 END
+                )
+            ) as score
+        ")
             ->withCasts(['score' => 'float']);
 
-        // Pénalité pour produits déjà vus
-        if (!empty($viewedProductIds)) {
-            $query->addSelect(DB::raw("CASE WHEN produits.id IN (" . implode(',', array_map('intval', $viewedProductIds)) . ") THEN -0.7 ELSE 0 END as view_penalty"))
-                ->orderByRaw('score + view_penalty DESC');
-        } else {
-            $query->orderBy('score', 'desc');
-        }
-
-        // Tri supplémentaire
-        switch ($sort) {
-            case 'popular':
-                $query->orderBy('raw_views_count', 'desc');
-                break;
-            case 'favorites':
-                $query->orderBy('favorites_count', 'desc')->orderBy('score', 'desc');
-                break;
-            default:
-                $query->orderBy('score', 'desc')->orderBy('favorites_count', 'desc');
-                break;
-        }
-
-        // Pagination
-        $produits = $perPage === null
-            ? $query->get()
-            : $query->paginate($perPage, ['*'], 'page', $page);
-
-        // Ajouter propriétés dynamiques
-        $collection = $perPage === null ? $produits : $produits->getCollection();
-        $collection->each(function ($produit) use ($user, $favoriteProductIds) {
-            $produit->is_favorited_by = $user && in_array($produit->id, $favoriteProductIds);
-
-            // Vérifier si le boost est encore actif
-            $boost = $produit->boosts->first();
-            $produit->boosted = $boost && ($produit->counts->views_count ?? 0) < ($boost->target_views ?? 0);
-            unset($produit->boosts);
-        });
-
-        // Désactiver les boosts atteints
-        $activeBoosts = Boost::where('statut', 'actif')->get();
-        foreach ($activeBoosts as $boost) {
-            $produit = Produit::with('counts')->find($boost->produit_id);
-            if ($produit && $produit->counts && $produit->counts->views_count >= ($boost->target_views ?? 0)) {
-                $boost->update(['statut' => 'inactif']);
-            }
-        }
-        // return response()->json($favoriteCategoryList);
-
-        return response()->json($produits);
+    // Pénalité pour produits déjà vus
+    if (!empty($viewedProductIds)) {
+        $query->addSelect(DB::raw("CASE WHEN produits.id IN (" . implode(',', array_map('intval', $viewedProductIds)) . ") THEN -1 ELSE 0 END as view_penalty"))
+            ->orderByRaw('score + view_penalty DESC');
+    } else {
+        $query->orderBy('score', 'desc');
     }
 
+    // Tri supplémentaire
+    switch ($sort) {
+        case 'popular':
+            $query->orderBy('raw_views_count', 'desc');
+            break;
+        case 'favorites':
+            $query->orderBy('favorites_count', 'desc')->orderBy('score', 'desc');
+            break;
+        default:
+            $query->orderBy('score', 'desc')->orderBy('favorites_count', 'desc');
+            break;
+    }
+
+    // Pagination
+    $produits = $perPage === null
+        ? $query->get()
+        : $query->paginate($perPage, ['*'], 'page', $page);
+
+    // Ajouter propriétés dynamiques
+    $collection = $perPage === null ? $produits : $produits->getCollection();
+    $collection->each(function ($produit) use ($user, $favoriteProductIds) {
+        $produit->is_favorited_by = $user && in_array($produit->id, $favoriteProductIds);
+
+        // Vérifier si le boost est encore actif
+        $boost = $produit->boosts->first();
+        $produit->boosted = $boost && ($produit->counts->views_count ?? 0) < ($boost->target_views ?? 0);
+        unset($produit->boosts);
+    });
+
+    // Désactiver les boosts atteints
+    $activeBoosts = Boost::where('statut', 'actif')->get();
+    foreach ($activeBoosts as $boost) {
+        $produit = Produit::with('counts')->find($boost->produit_id);
+        if ($produit && $produit->counts && $produit->counts->views_count >= ($boost->target_views ?? 0)) {
+            $boost->update(['statut' => 'inactif']);
+        }
+    }
+
+    return response()->json($produits);
+}
     public function publicIndex(Request $request)
     {
         $sort = $request->query('sort', 'default');
