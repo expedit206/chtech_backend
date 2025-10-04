@@ -47,6 +47,7 @@ class MessageSent implements ShouldBroadcastNow
                 'updated_at' => $this->message->updated_at,
                 'is_read' => $this->message->is_read,
                 'product_id' => $this->message->product_id,
+                'type' => $this->message->type,
                 'product' => $this->message->product ? [
                     'id' => $this->message->product->id,
                     'nom' => $this->message->product->nom,

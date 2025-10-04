@@ -7,6 +7,7 @@ use App\Models\Message;
 use App\Events\MessageSent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Broadcast;
@@ -141,73 +142,62 @@ class ChatController extends Controller
     /**
      * Envoyer un nouveau message
      */
-    public function store(Request $request, $receiverId)
+     public function store(Request $request, $receiverId)
     {
         $user = $request->user();
+        if (!$user) return response()->json(['message' => 'Utilisateur non authentifié'], 401);
 
-        if (!$user) {
-            return response()->json(['message' => 'Utilisateur non authentifié'], 401);
-        }
+        $receiver = User::find($receiverId);
+        if (!$receiver) return response()->json(['message' => 'Destinataire non trouvé'], 404);
 
-        $receiver = \App\Models\User::find($receiverId);
-        if (!$receiver) {
-            return response()->json(['message' => 'Destinataire non trouvé'], 404);
-        }
 
+        // return response()->json(['message' => $request->all()], 404);
         $validated = $request->validate([
-            'content' => 'required|string|max:1000',
+            'type' => 'nullable|string|in:text,audio,image',
+            'content' => 'nullable|string|max:1000',
+            'audio' => 'nullable|file|mimes:mp3,wav,ogg,webm|max:10240',
+            'image' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:5120',
             'product_id' => 'nullable|exists:produits,id',
         ]);
 
-        $message = new \App\Models\Message();
+        $message = new Message();
         $message->sender_id = $user->id;
         $message->receiver_id = $receiverId;
-        $message->content = $validated['content'];
         $message->product_id = $validated['product_id'] ?? null;
-        $message->save();
+        $message->type = $validated['type'] ?? 'text';
 
-        // Charger les relations pour l'événement
+        // 🔹 Gestion des types
+        if ($request->hasFile('audio')) {
+            $path = $request->file('audio')->store('messages/audio', 'public');
+            $message->content = asset('storage/' . $path);
+            $message->type = 'audio';
+        } elseif ($request->hasFile('image')) {
+            $path = $request->file('image')->store('messages/images', 'public');
+            $message->content = asset('storage/' . $path);
+            $message->type = 'image';
+        } else {
+            $message->content = $validated['content'] ?? '';
+        }
+
+        $message->save();
         $message->load('sender', 'receiver', 'product');
 
-        // Compter les messages non lus
-        $unreadMessages = \App\Models\Message::where('receiver_id', $receiverId)
+        $unreadMessages = Message::where('receiver_id', $receiverId)
             ->where('is_read', false)
             ->count();
 
         try {
-            broadcast(new \App\Events\MessageSent($message, $user, $receiver, $unreadMessages))->toOthers();
-            \Log::info('Événement MessageSent déclenché', ['message_id' => $message->id]);
+            broadcast(new MessageSent($message, $user, $receiver, $unreadMessages))->toOthers();
+            Log::info('MessageSent diffusé', ['message_id' => $message->id]);
         } catch (\Exception $e) {
-            \Log::error('Échec de la diffusion : ' . $e->getMessage());
+            Log::error('Diffusion échouée : ' . $e->getMessage());
         }
 
         return response()->json([
             'message' => 'Message envoyé avec succès',
-            'message_data' => [
-                'id' => $message->id,
-                'sender_id' => $message->sender_id,
-                'receiver_id' => $message->receiver_id,
-                'content' => $message->content,
-                'product_id' => $message->product_id,
-                'created_at' => $message->created_at,
-                'updated_at' => $message->updated_at,
-                'is_read' => $message->is_read,
-                'sender' => [
-                    'id' => $message->sender->id,
-                    'nom' => $message->sender->nom,
-                ],
-                'receiver' => [
-                    'id' => $message->receiver->id,
-                    'nom' => $message->receiver->nom,
-                ],
-                'product' => $message->product ? [
-                    'id' => $message->product->id,
-                    'nom' => $message->product->nom,
-                ] : null,
-            ],
+            'data' => $message,
         ], 201);
     }
-
     
     public function markAllAsRead(Request $request)
     {
