@@ -117,7 +117,8 @@ Route::get('/categories', [CategoryController::class, 'index']);
     Route::get('/chat/{receiverId}', [ChatController::class, 'index']);
     Route::post('/chat/{receiverId}', [ChatController::class, 'store']);
     Route::put('/messages/mark-all-as-read', [ChatController::class, 'markAllAsRead']);
-    
+    Route::put('/chat/message/{messageId}', [ChatController::class, 'update']);
+Route::delete('/chat/message/{messageId}', [ChatController::class, 'destroy']);
 
 
 Route::post('/upgrade-to-premium', [SubscriptionController::class, 'upgradeToPremium']);

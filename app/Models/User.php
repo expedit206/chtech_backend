@@ -80,4 +80,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(NiveauUser::class);
     }
+    //messages
+    public function messages()
+    {
+        return $this->hasMany(Message::class, 'sender_id');
+    }
 }

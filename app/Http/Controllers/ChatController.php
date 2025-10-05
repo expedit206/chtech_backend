@@ -6,6 +6,8 @@ use App\Models\User;
 use App\Models\Message;
 use App\Events\MessageSent;
 use Illuminate\Http\Request;
+use App\Events\MessageDeleted;
+use App\Events\MessageUpdated;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
@@ -214,4 +216,79 @@ class ChatController extends Controller
         $unreadMessagesCount = Message::where('receiver_id', $user->id)->where('is_read', false)->count();
         return response()->json(['message' => 'Tous les messages marqués comme lus', 'unread_messages' => $unreadMessagesCount]);
     }
+
+
+
+
+    /**
+     * Éditer un message existant
+     */
+    public function update(Request $request, $messageId)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Utilisateur non authentifié'], 401);
+        }
+
+        $message = Message::find($messageId);
+        if (!$message || $message->sender_id !== $user->id ) {
+            return response()->json(['message' => 'Message non trouvé ou non autorisé'.$messageId], 403);
+        }
+
+        $validated = $request->validate([
+            'content' => 'required|string|max:1000',
+        ]);
+
+        $message->content = $validated['content'];
+        $message->updated_at = now();
+        $message->save();
+
+        // Charger les relations pour la réponse
+        $message->load('sender', 'receiver', 'product');
+ try {
+            broadcast(new MessageUpdated($message, $user, User::find($message->receiver_id)))->toOthers();
+        } catch (\Exception $e) {
+            Log::error('Diffusion MessageUpdated échouée : ' . $e->getMessage());
+        }
+        return response()->json([
+            'message' => 'Message mis à jour avec succès',
+            'data' => $message,
+        ]);
+    }
+
+    /**
+     * Supprimer un message
+     */
+    public function destroy(Request $request, $messageId)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Utilisateur non authentifié'], 401);
+        }
+
+        $message = Message::find($messageId);
+        if (!$message || $message->sender_id !== $user->id) {
+            return response()->json(['message' => 'Message non trouvé ou non autorisé'.$messageId], 403);
+        }
+
+        // Supprimer le fichier si audio ou image
+        if (in_array($message->type, ['audio', 'image'])) {
+            $filePath = public_path(str_replace(asset(''), '', $message->content));
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+        }
+
+
+        $receiverId = $message->receiver_id;
+        $message->delete();
+
+         try {       
+             broadcast(new MessageDeleted($messageId, $user->id, $receiverId));
+        } catch (\Exception $e) {
+            Log::error('Diffusion MessageDeleted échouée : ' . $e->getMessage());
+        }
+        return response()->json(['message' => 'Message supprimé avec succès']);
+    }
+
 }
