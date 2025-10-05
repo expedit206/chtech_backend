@@ -142,62 +142,66 @@ class ChatController extends Controller
     /**
      * Envoyer un nouveau message
      */
-     public function store(Request $request, $receiverId)
-    {
-        $user = $request->user();
-        if (!$user) return response()->json(['message' => 'Utilisateur non authentifié'], 401);
+    public function store(Request $request, $receiverId)
+{
+    $user = $request->user();
+    if (!$user) return response()->json(['message' => 'Utilisateur non authentifié'], 401);
 
-        $receiver = User::find($receiverId);
-        if (!$receiver) return response()->json(['message' => 'Destinataire non trouvé'], 404);
+    $receiver = User::find($receiverId);
+    if (!$receiver) return response()->json(['message' => 'Destinataire non trouvé'], 404);
 
+    $validated = $request->validate([
+        'type' => 'nullable|string|in:text,audio,image',
+        'content' => 'nullable|string|max:1000',
+        'audio' => 'nullable|file|mimes:mp3,wav,ogg,webm|max:10240',
+        'image' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:5120',
+        'product_id' => 'nullable|exists:produits,id',
+    ]);
 
-        // return response()->json(['message' => $request->all()], 404);
-        $validated = $request->validate([
-            'type' => 'nullable|string|in:text,audio,image',
-            'content' => 'nullable|string|max:1000',
-            'audio' => 'nullable|file|mimes:mp3,wav,ogg,webm|max:10240',
-            'image' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:5120',
-            'product_id' => 'nullable|exists:produits,id',
-        ]);
+    $message = new Message();
+    $message->sender_id = $user->id;
+    $message->receiver_id = $receiverId;
+    $message->product_id = $validated['product_id'] ?? null;
+    $message->type = $validated['type'] ?? 'text';
 
-        $message = new Message();
-        $message->sender_id = $user->id;
-        $message->receiver_id = $receiverId;
-        $message->product_id = $validated['product_id'] ?? null;
-        $message->type = $validated['type'] ?? 'text';
-
-        // 🔹 Gestion des types
-        if ($request->hasFile('audio')) {
-            $path = $request->file('audio')->store('messages/audio', 'public');
-            $message->content = asset('storage/' . $path);
-            $message->type = 'audio';
-        } elseif ($request->hasFile('image')) {
-            $path = $request->file('image')->store('messages/images', 'public');
-            $message->content = asset('storage/' . $path);
-            $message->type = 'image';
-        } else {
-            $message->content = $validated['content'] ?? '';
-        }
-
-        $message->save();
-        $message->load('sender', 'receiver', 'product');
-
-        $unreadMessages = Message::where('receiver_id', $receiverId)
-            ->where('is_read', false)
-            ->count();
-
-        try {
-            broadcast(new MessageSent($message, $user, $receiver, $unreadMessages))->toOthers();
-            Log::info('MessageSent diffusé', ['message_id' => $message->id]);
-        } catch (\Exception $e) {
-            Log::error('Diffusion échouée : ' . $e->getMessage());
-        }
-
-        return response()->json([
-            'message' => 'Message envoyé avec succès',
-            'data' => $message,
-        ], 201);
+    // 🔹 Gestion des types
+    if ($request->hasFile('audio')) {
+        $file = $request->file('audio');
+        $filename = time() . '_' . $file->getClientOriginalName();
+        $path = public_path('storage/messages/audio/' . $filename);
+        $file->move(public_path('storage/messages/audio'), $filename);
+        $message->content = asset('storage/messages/audio/' . $filename); // URL directe
+        $message->type = 'audio';
+    } elseif ($request->hasFile('image')) {
+        $file = $request->file('image');
+        $filename = time() . '_' . $file->getClientOriginalName();
+        $path = public_path('storage/messages/images/' . $filename);
+        $file->move(public_path('storage/messages/images'), $filename);
+        $message->content = asset('storage/messages/images/' . $filename); // URL directe
+        $message->type = 'image';
+    } else {
+        $message->content = $validated['content'] ?? '';
     }
+
+    $message->save();
+    $message->load('sender', 'receiver', 'product');
+
+    $unreadMessages = Message::where('receiver_id', $receiverId)
+        ->where('is_read', false)
+        ->count();
+
+    try {
+        broadcast(new MessageSent($message, $user, $receiver, $unreadMessages))->toOthers();
+        Log::info('MessageSent diffusé', ['message_id' => $message->id]);
+    } catch (\Exception $e) {
+        Log::error('Diffusion échouée : ' . $e->getMessage());
+    }
+
+    return response()->json([
+        'message' => 'Message envoyé avec succès',
+        'data' => $message,
+    ], 201);
+}
     
     public function markAllAsRead(Request $request)
     {
