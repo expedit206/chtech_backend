@@ -110,7 +110,7 @@ class CommercantController extends Controller
             'nom' => 'required|string|max:255',
             'description' => 'nullable|string',
             'prix' => 'required|numeric|min:0',
-            'photos' => 'nullable|array',
+            'photos' => 'required|array',
             'photos.*' => 'image|mimes:jpg,jpeg,png,webp|max:2048',
             'old_photos' => 'nullable|array',
             'old_photos.*' => 'string',
@@ -167,14 +167,29 @@ class CommercantController extends Controller
     }
 
 
-    public function destroyProduit(Produit $produit, Request $request)
-    {
-        // $commercant = $request->user()->load('commercant');
+      public function destroyProduit(Request $request, $id)
+{
+    $user = $request->user()->load('commercant');
+    $produit = Produit::where('commercant_id', $user->commercant->id)->findOrFail($id);
 
-        // $produit = Produit::where('commercant_id', $commercant->id)->findOrFail($id);
-        $produit->delete();
-        return response()->json(['message' => 'Produit supprimé']);
+    if (!$user->commercant || $produit->commercant_id !== $user->commercant->id) {
+        return response()->json(['message' => 'Accès non autorisé'], 403);
     }
+
+    // Supprimer les photos associées
+    if ($produit->photos) {
+        foreach ($produit->photos as $photo) {
+            $path = public_path(str_replace(asset(''), '', $photo));
+            if (file_exists($path)) {
+                unlink($path);
+            }
+        }
+    }
+
+    $produit->delete();
+
+    return response()->json(['message' => 'Produit supprimé avec succès'], 200);
+}
 
     public function profil(Request $request)
     {
