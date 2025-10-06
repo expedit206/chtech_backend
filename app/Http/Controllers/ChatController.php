@@ -49,11 +49,12 @@ class ChatController extends Controller
                     ->where('sender_id', $otherUserId)
                     ->where('is_read', false)
                     ->count();
-
+$lastMessageType = $lastMessage->type ?? 'text';
                 return [
                     'user_id' => $otherUserId,
                     'name' => $otherUser ? $otherUser->nom : 'Inconnu',
                     'last_message' => $lastMessage->content ?? '',
+                    'last_message_type  ' => $lastMessageType ?? $lastMessage->content,
                     'updated_at' => $lastMessage->updated_at ?? now(),
                     'unread_count' => $unreadCount,
                     'is_commercant' => $otherUser->commercant ? true : false,
@@ -89,6 +90,7 @@ class ChatController extends Controller
                 'user_id' => $serviceClientId,
                 'name' => $serviceClient ? $serviceClient->nom : 'Service Client',
                 'last_message' => $lastMessageWithService->content ?? 'ecrivez moi pour tout besoin',
+                'last_message_type' => $lastMessageWithService ? $lastMessageWithService->type : 'text',
                 'updated_at' => $lastMessageWithService->updated_at ?? now(),
                 'unread_count' => $unreadCountWithService,
                 'is_commercant' => $serviceClient->commercant ? true : false,

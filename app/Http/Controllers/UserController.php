@@ -204,10 +204,13 @@ class UserController extends Controller
     {
         $user = $request->user();
         $commercant = $user->commercant;
+         $unreadMessagesCount = Message::where('receiver_id', $user->id)
+            ->where('is_read', false)
+            ->count();
         if (!$commercant) {
             return response()->json([
                 'collaborations_pending' => 0,
-                'unread_messages' => 0,
+                'unread_messages' => $unreadMessagesCount,
             ]);
         }
         $collaborationsPendingCount = Collaboration::where(function ($query) use ($commercant) {
@@ -217,9 +220,7 @@ class UserController extends Controller
                 });
         })->where('statut', 'en_attente')
             ->count();
-        $unreadMessagesCount = Message::where('receiver_id', $user->id)
-            ->where('is_read', false)
-            ->count();
+       
         // $conversations = $user->conversations()->withCount(['messages as unread_count' => function ($query) use ($user) {
         //     $query->where('receiver_id', $user->id)->where('is_read', false);
         // }])->get();
