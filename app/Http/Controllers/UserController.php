@@ -238,7 +238,14 @@ class UserController extends Controller
         if (!$user) {
             return response()->json(['message' => 'Utilisateur non authentifié'], 401);
         }
+        //     $user->favoris()->count(),
+
+        $user['favoris_count'] = $user->favoris_count();
+        $user['conversations_count'] = $user->conversations_count();
+        $user['products_count'] = $user->commercant?->produits?->count() ?? 0;
         $user->load('commercant', 'niveaux_users.parrainageNiveau');
-        return response()->json(['user' => $user]);
+        return response()->json(['user' => $user,
+    // 'favorites_count'=> $user->favoris_count()
+    ], 200);
     }
 }

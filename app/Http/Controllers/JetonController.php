@@ -67,7 +67,7 @@ class JetonController extends Controller
                 'methode_paiement' => $paymentService,
                 'phone_number' => $phoneNumber,
                 'transaction_id_mesomb' => $nonce,
-                'statut' => 'réussi',
+                '   ' => 'success',
                 'date_transaction' => now('Africa/Douala'),
             ]);
 
@@ -90,7 +90,7 @@ class JetonController extends Controller
 
                 'methode_paiement' => $paymentService,
                 'transaction_id_mesomb' => null,
-                'statut' => 'échoué',
+                '   ' => 'failed',
                 'date_transaction' => now(),
             ]);
 

@@ -204,6 +204,7 @@ class ProfileController extends Controller
             'nom' => $user->nom,
             'photo' => $user->photo,
             'premium' => $user->premium,
+            'created_at'=>$user->created_at,
             'subscription_ends_at' => $user->subscription_ends_at,
             'commercant' => $user->commercant ? true : false,
             'ville' => $user->ville,

@@ -60,13 +60,42 @@ class ProduitController extends Controller
         ? "'" . implode("','", $favoriteCategoryIds) . "'"
         : "'0'"; // valeur par défaut (ne match rien)
 
-    // Filtres
-    if ($search) {
-        $query->where(function ($q) use ($search) {
-            $q->where('nom', 'like', "%{$search}%")
-                ->orWhere('description', 'like', "%{$search}%");
+        
+        
+        
+if ($search) {
+        $searchTerms = array_filter(explode(' ', trim($search))); // Supprime les termes vides
+        // $searchTerms = array_filter( trim($search)); // Supprime les termes vides
+        $query->where(function ($q) use ($searchTerms) {
+            foreach ($searchTerms as $term) {
+                $term = trim($term);
+                if ($term) {
+                    $q->where(function ($subQ) use ($term) {
+                        // Filtre initial avec LIKE pour réduire le jeu de données
+                        $subQ->where('produits.nom', 'like', "%{$term}%")
+                            ->orWhere('produits.description', 'like', "%{$term}%")
+                            ->orWhereHas('category', fn($cat) => $cat->where('nom', 'like', "%{$term}%"))
+                            ->orWhereHas('commercant', fn($com) =>
+                                $com->where('nom', 'like', "%{$term}%")
+                                    ->orWhere('description', 'like', "%{$term}%")
+                            );
+                    })->orWhere(function ($subQ) use ($term) {
+                        // Filtre flou avec Levenshtein (seuil de 2)
+                        $subQ
+                        ->whereRaw("LEVENSHTEIN(LOWER(produits.nom), LOWER(?)) <= 4", [$term])
+                            ->orWhereRaw("LEVENSHTEIN(LOWER(produits.description), LOWER(?)) <= 4", [$term])
+                            ;
+                    });
+
+                }
+            }
+            // return response()->json(['term'=>$searchTerms], 403);
         });
+//         $distance = DB::selectOne("SELECT LEVENSHTEIN(LOWER(?), LOWER(?)) AS dist", ['dil', 'dil2']);
+// return response()->json($distance);
     }
+
+    
     if ($category) $query->where('category_id', $category);
     if ($prixMin) $query->where('prix', '>=', (float)$prixMin);
     if ($prixMax) $query->where('prix', '<=', (float)$prixMax);

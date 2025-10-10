@@ -2,12 +2,13 @@
 // app/Models/User.php
 namespace App\Models;
 
-use Laravel\Sanctum\HasApiTokens;
 use App\Models\Abonnement;
 use App\Models\Commercant;
 use App\Models\NiveauUser;
 use App\Models\Parrainage;
 use App\Models\Collaboration;
+use App\Models\ProductFavorite;
+use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
@@ -85,4 +86,17 @@ class User extends Authenticatable
     {
         return $this->hasMany(Message::class, 'sender_id');
     }
+    // conversation_count
+    public function conversations_count()
+    {
+        // return $this->hasMany(Message::class, 'sender_id')->count();
+        return $this->hasMany(Message::class, 'sender_id')->distinct('receiver_id')->count('receiver_id');
+    }
+
+    public function favoris_count()
+    {
+        return $this->hasMany(ProductFavorite::class)->count();
+    }
+
+ 
 }

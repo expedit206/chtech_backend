@@ -133,7 +133,7 @@ class ParrainageController extends Controller
         }
 
         $request->validate([
-            'code' => 'required|string|max:10|unique:users,parrainage_code',
+            'code' => 'required|string|max:10',
         ]);
 
         $customCode = strtoupper($request->code);
