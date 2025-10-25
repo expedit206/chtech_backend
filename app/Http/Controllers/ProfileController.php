@@ -206,7 +206,7 @@ class ProfileController extends Controller
             'premium' => $user->premium,
             'created_at'=>$user->created_at,
             'subscription_ends_at' => $user->subscription_ends_at,
-            'commercant' => $user->commercant ? true : false,
+            'commercant' => $user->commercant??null,
             'ville' => $user->ville,
             'telephone' => $user->telephone,
             'niveaux_users' => $user->niveaux_users,

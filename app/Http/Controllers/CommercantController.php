@@ -110,10 +110,10 @@ class CommercantController extends Controller
             'nom' => 'required|string|max:255',
             'description' => 'nullable|string',
             'prix' => 'required|numeric|min:0',
-            'photos' => 'required|array',
-            'photos.*' => 'image|mimes:jpg,jpeg,png,webp|max:2048',
+            'photos' => 'array',
+            'photos.*' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             'old_photos' => 'nullable|array',
-            'old_photos.*' => 'string',
+            'old_photos.*' => 'nullable|string',
             'category_id' => 'required|exists:categories,id',
             'collaboratif' => 'boolean',
             'marge_min' => 'nullable|numeric|min:0',
@@ -198,17 +198,28 @@ class CommercantController extends Controller
         return response()->json(['commercant' => '$commercant']);
     }
 
-    public function show($id)
-    {
-        $commercant = Commercant::with(['produits'])->findOrFail($id);
-        $averageRating = $commercant->average_rating; // Utilise l'attribut calculé
-        $voteCount = $commercant->ratings()->count();
-        return response()->json([
-            'commercant' => $commercant,
-            'vote_count' => $voteCount,
-            'average_rating' => $averageRating,
-        ]);
-    }
+
+public function show($id)
+{
+    $commercant = Commercant::with([
+        'produits' => function($query) {
+            $query->with(['counts'])
+                  ->with('category');
+        }
+    ])->findOrFail($id);
+
+    $averageRating = $commercant->average_rating;
+    $voteCount = $commercant->ratings()->count();
+
+
+
+    return response()->json([
+        'commercant' => $commercant,
+        'vote_count' => $voteCount,
+        'average_rating' => $averageRating,
+     
+    ]);
+}
 
     
 

@@ -133,17 +133,22 @@ if ($search) {
     }
 
     // Tri supplémentaire
-    switch ($sort) {
-        case 'popular':
-            $query->orderBy('raw_views_count', 'desc');
-            break;
-        case 'favorites':
-            $query->orderBy('favorites_count', 'desc')->orderBy('score', 'desc');
-            break;
-        default:
-            $query->orderBy('score', 'desc')->orderBy('favorites_count', 'desc');
-            break;
-    }
+ switch ($sort) {
+    case 'favorites':
+        // Filtrer uniquement les produits favoris de l'utilisateur connecté
+        $userId = $user ? $user->id : null;
+            $query->whereHas('favorites', function ($q) use ($userId) {
+                $q->where('user_id', $userId);
+            });
+        
+        break;
+
+    default:
+        // Tri normal par score puis favoris
+        $query->orderBy('score', 'desc')
+              ->orderBy('favorites_count', 'desc');
+        break;
+}
 
     // Pagination
     $produits = $perPage === null
@@ -322,7 +327,7 @@ public function publicShow($id, Request $request)
 
         // Ajouter uniquement les propriétés publiques
         $produit->commercant->rating = $produit->commercant->average_rating; // Attribut calculé
-        $produit->boosted_until = $produit->boosts->first()?->end_date;
+        $produit['boosted_until'] = $produit->boosts->first()?->end_date;
         $produit->is_favorited_by = false; // Par défaut pour les non-connectés
 
         return response()->json(['produit' => $produit->load('counts')]);

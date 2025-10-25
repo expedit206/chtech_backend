@@ -98,5 +98,11 @@ class User extends Authenticatable
         return $this->hasMany(ProductFavorite::class)->count();
     }
 
+    //favoris
+    public function favoris()
+    {
+        return $this->hasMany(ProductFavorite::class);
+    }
+
  
 }
