@@ -69,6 +69,7 @@ class SubscriptionController extends Controller
                 'message' => 'Paiement initialisé avec succès',
                 'authorization_url' => $payment->authorization_url,
                 'reference' => $payment->transaction->reference,
+                'payment' => $payment,
             ], 200);
 
         } catch (\Exception $e) {
@@ -87,7 +88,11 @@ class SubscriptionController extends Controller
         $reference = $request->query('reference');
         
         if (!$reference) {
-            return view('payment.error', ['message' => 'Référence manquante']);
+            // return view('payment.error', ['message' => 'Référence manquante']);
+            return response()->json([
+                'message' => 'fallback reference',
+                'reference' => $reference,
+            ], 400);
         }
 
         try {
@@ -97,7 +102,11 @@ class SubscriptionController extends Controller
             $premiumTransaction = PremiumTransaction::where('transaction_id_mesomb', $reference)->first();
             
             if (!$premiumTransaction) {
-                return view('payment.error', ['message' => 'Transaction non trouvée']);
+                         return response()->json([
+                'message' => 'Transaction non trouvée',
+                'reference' => $reference,
+            ], 400);
+                // return view('payment.error', ['message' => 'Transaction non trouvée']);
             }
 
             $user = $premiumTransaction->user;
@@ -123,9 +132,13 @@ class SubscriptionController extends Controller
                     'subscription_ends_at' => $endsAt,
                 ]);
 
-                return view('payment.success', [
-                    'payment' => $transaction,
-                    'user' => $user
+                
+  return response()->json([
+                'message' => 'payment.success',
+                'reference' => $reference,
+                // return view('payment.success', [
+                //     'payment' => $transaction,
+                //     'user' => $user
                 ]);
 
             } else {
@@ -133,16 +146,22 @@ class SubscriptionController extends Controller
                 $premiumTransaction->update([
                     'statut' => 'echec',
                 ]);
+                  return response()->json([
+                'message' => 'Paiement non complété',
+                'reference' => $reference,
 
-                return view('payment.failed', [
-                    'payment' => $transaction,
-                    'message' => 'Paiement non complété'
+                // return view('payment.failed', [
+                //     'payment' => $transaction,
+                //     'message' => 'Paiement non complété'
                 ]);
             }
 
         } catch (\Exception $e) {
-            return view('payment.error', [
-                'message' => 'Erreur: ' . $e->getMessage()
+              return response()->json([
+                'message' => 'error de paiement',
+                'reference' => $reference,
+            // return view('payment.error', [
+            //     'message' => 'Erreur: ' . $e->getMessage()
             ]);
         }
     }
