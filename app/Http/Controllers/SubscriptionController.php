@@ -3,14 +3,18 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use MeSomb\Util\RandomGenerator;
+use NotchPay\NotchPay;
+use NotchPay\Payment;
 use App\Models\PremiumTransaction;
-use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Auth;
-use MeSomb\Operation\PaymentOperation;
 
 class SubscriptionController extends Controller
 {
+    public function __construct()
+    {
+        NotchPay::setApiKey(env('NOTCHPAY_API_KEY'));
+        NotchPay::setPrivateKey(env('NOTCHPAY_PRIVATE_KEY'));
+    }
+
     public function upgradeToPremium(Request $request)
     {
         $user = $request->user();
@@ -19,94 +23,127 @@ class SubscriptionController extends Controller
             return response()->json(['message' => 'Utilisateur non authentifié'], 401);
         }
 
-        // Valider le type d'abonnement
         $validated = $request->validate([
             'subscription_type' => 'required|in:monthly,yearly',
-            'payment_service' => 'required|in:ORANGE,MTN',
-
-            'phone_number' => 'required|regex:/^6[0-9]{8}$/', // 9 chiffres commençant par 6
+            'email' => 'email',
+            'name' => 'string',
+            'phone_number' => 'nullable|regex:/^6[0-9]{8}$/',
         ]);
-        // return respons   e()->json(['message' => 'Utilisateur non authentifié']);
-
 
         $subscriptionType = $validated['subscription_type'];
-        $paymentService = $validated['payment_service'];
-        $phoneNumber = $validated['phone_number'];
-        $amount = $subscriptionType === 'monthly' ? 10 : 50000;
+        $email = $validated['email']??'mciagnessi@gmail.com';
+        $name = $validated['name']??'dominique';
+        $phoneNumber = $validated['phone_number'] ?? null;
+        
+        $amount = $subscriptionType === 'monthly' ? 1000 : 50000;
         $typeAbonnement = $subscriptionType === 'monthly' ? 'mensuel' : 'annuel';
-        //mesomb pour paiement
 
-        $mesomb = new PaymentOperation(
-            env('MESOMB_APPLICATION_KEY'),
-            env('MESOMB_ACCESS_KEY'),
-            env('MESOMB_SECRET_KEY'),
-        );
+        try {
+            $payment = Payment::initialize([
+                'amount' => $amount,
+                'currency' => 'XAF',
+                'email' => $email,
+                'name' => $name,
+                'phone' => $phoneNumber,
+                'reference' => 'PREMIUM_' . $user->id . '_' . time(),
+                'callback' => route('subscription.callback'), // URL de retour
+                'description' => 'Abonnement Premium ' . $typeAbonnement,
+                'metadata' => [
+                    'user_id' => $user->id,
+                    'subscription_type' => $subscriptionType,
+                ]
+            ]);
 
-        $nonce = RandomGenerator::nonce();
-
-        // return response()->json(
-        //     [
-        //     'amount' => $amount, // Convertir en centimes
-        //     'service' => $paymentService,
-        //     'payer' => $phoneNumber, // Utiliser le numéro fourni
-        //     'nonce' => $nonce,
-        // ], 400);
-
-        // Appel à makeCollect avec le numéro dynamique
-        $response = $mesomb->makeCollect([
-            'amount' => $amount, // Convertir en centimes
-            'service' => $paymentService,
-            'payer' => $phoneNumber, // Utiliser le numéro fourni
-            'nonce' => $nonce,
-        ]);
-
-        if ($response->isOperationSuccess()) {
-
-
-            $user->jetons +=30;
+            // Enregistrer en attente
             PremiumTransaction::create([
-                // 'id' => \Str::uuid(),
                 'user_id' => $user->id,
                 'type_abonnement' => $typeAbonnement,
                 'montant' => $amount,
-                'methode_paiement' => $paymentService,
-                'transaction_id_mesomb' => $nonce,
-                'statut' => 'réussi',
+                'methode_paiement' => 'notchpay',
+                'transaction_id_mesomb' => $payment->transaction->reference,
+                'statut' => 'en_attente',
                 'date_transaction' => now(),
             ]);
 
+            return response()->json([
+                'message' => 'Paiement initialisé avec succès',
+                'authorization_url' => $payment->authorization_url,
+                'reference' => $payment->transaction->reference,
+            ], 200);
 
-            // return response()->json(['message' => 'reussi du paiement'], 200);
-        } else {
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Erreur lors de l\'initialisation du paiement',
+                'error' => $e->getMessage()
+            ], 400);
+        }
+    }
 
-            
-            PremiumTransaction::create([
-                // 'id' => \Str::uuid(),
-                'user_id' => $user->id,
-                'type_abonnement' => $typeAbonnement,
-                'montant' => $amount,
-                'methode_paiement' => $paymentService,
-                'transaction_id_mesomb' => $nonce,
-                'statut' => 'echec',
-                'date_transaction' => now(),
-            ]);
-            return response()->json(['message' => $response], 400);
+    /**
+     * CALLBACK SEUL - Suffisant pour la plupart des cas
+     */
+    public function handleCallback(Request $request)
+    {
+        $reference = $request->query('reference');
+        
+        if (!$reference) {
+            return view('payment.error', ['message' => 'Référence manquante']);
         }
 
+        try {
+            // Vérifier IMMÉDIATEMENT le statut avec l'API NotchPay
+            $transaction =  Payment::verify($reference);
 
+            $premiumTransaction = PremiumTransaction::where('transaction_id_mesomb', $reference)->first();
+            
+            if (!$premiumTransaction) {
+                return view('payment.error', ['message' => 'Transaction non trouvée']);
+            }
 
-        // Mettre à jour is_premium à 1
-        $user->update(['premium' => 1]);
+            $user = $premiumTransaction->user;
 
-        // Optionnel : Gérer la durée (mensuel ou annuel)
-        $trialOrSubscriptionEndsAt = $subscriptionType === 'monthly' ? now()->addMonth() : now()->addYear();
-        $user->update(['subscription_ends_at' => $trialOrSubscriptionEndsAt]);
+            // Vérifier le statut
+            if (in_array($transaction->status, ['complete', 'success', 'completed'])) {
+                // ✅ PAIEMENT RÉUSSI
+                $premiumTransaction->update([
+                    'statut' => 'réussi',
+                    'date_transaction' => now(),
+                ]);
 
-        return response()->json([
-            'message' => 'Abonnement Premium activé avec succès',
-            'subscription_type' => $subscriptionType,
-            'ends_at' => $user->subscription_ends_at,
-            'user' => $user,
-        ], 200);
+                // Ajouter les jetons
+                $user->jetons += 30;
+                $user->save();
+
+                // Activer premium
+                $subscriptionType = $premiumTransaction->type_abonnement === 'mensuel' ? 'monthly' : 'yearly';
+                $endsAt = $subscriptionType === 'monthly' ? now()->addMonth() : now()->addYear();
+                
+                $user->update([
+                    'premium' => 1,
+                    'subscription_ends_at' => $endsAt,
+                ]);
+
+                return view('payment.success', [
+                    'payment' => $transaction,
+                    'user' => $user
+                ]);
+
+            } else {
+                // ❌ PAIEMENT ÉCHOUÉ
+                $premiumTransaction->update([
+                    'statut' => 'echec',
+                ]);
+
+                return view('payment.failed', [
+                    'payment' => $transaction,
+                    'message' => 'Paiement non complété'
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            return view('payment.error', [
+                'message' => 'Erreur: ' . $e->getMessage()
+            ]);
+        }
     }
 }

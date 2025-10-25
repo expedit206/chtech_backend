@@ -7,14 +7,14 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\JetonController;
+use App\Http\Controllers\OfferController;
 use App\Http\Controllers\StatsController;
 use Illuminate\Support\Facades\Broadcast;
 use App\Http\Controllers\WalletController;
 use App\Http\Controllers\ProduitController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\CategoryController;
-use App\Http\Controllers\AbonnementController;
-use App\Http\Controllers\CommercantController;
 
 Route::get('/redis-test', function () {
     Redis::set('test_key', 'Hello Redis!');
@@ -26,13 +26,14 @@ Route::get('/redis-test', function () {
     // Routes protégées
     // Authentification
     // Route::post('register', [UserController::class, 'register']);
+use App\Http\Controllers\AbonnementController;
+use App\Http\Controllers\CommercantController;
+
 use App\Http\Controllers\ParrainageController;
 use App\Http\Controllers\JetonMarketController;
-
 use App\Http\Controllers\SubscriptionController;
 use Illuminate\Broadcasting\BroadcastController;
 use App\Http\Controllers\CollaborationController;
-use App\Http\Controllers\OfferController;
 
 Route::post('/login', [UserController::class, 'login']);
 Route::post('register', [UserController::class, 'register']);
@@ -122,6 +123,11 @@ Route::delete('/chat/message/{messageId}', [ChatController::class, 'destroy']);
 
 
 Route::post('/upgrade-to-premium', [SubscriptionController::class, 'upgradeToPremium']);
+
+    Route::get('/subscription/callback', [SubscriptionController::class, 'handleCallback'])->name('subscription.callback');
+    Route::get('/payment/status', [SubscriptionController::class, 'checkPaymentStatus']);
+    Route::get('/transactions', [SubscriptionController::class, 'listTransactions']);
+// routes/api.php
 
     Route::post('/updateProfile', [ProfileController::class, 'updateProfile']);
 
