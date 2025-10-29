@@ -13,26 +13,13 @@ use Illuminate\Support\Facades\Broadcast;
 use App\Http\Controllers\WalletController;
 use App\Http\Controllers\ProduitController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\CategoryController;
 
-Route::get('/redis-test', function () {
-    Redis::set('test_key', 'Hello Redis!');
-    return Redis::get('test_key'); // Doit retourner "Hello Redis!"
-});
-// Route::post('register', [UserController::class, 'register']);
-// Route::middleware('guest')->group(function () {
-    // });
-    // Routes protégées
-    // Authentification
-    // Route::post('register', [UserController::class, 'register']);
 use App\Http\Controllers\AbonnementController;
 use App\Http\Controllers\CommercantController;
 
 use App\Http\Controllers\ParrainageController;
-use App\Http\Controllers\JetonMarketController;
 use App\Http\Controllers\SubscriptionController;
-use Illuminate\Broadcasting\BroadcastController;
 use App\Http\Controllers\CollaborationController;
 
 Route::post('/login', [UserController::class, 'login']);
@@ -51,6 +38,8 @@ Route::get('/categories', [CategoryController::class, 'index']);
     // Route::get('produits', [ProduitController::class, 'index']);
     
     Route::middleware('auth:sanctum')->group(function () {
+
+        
     Route::get('produits', [ProduitController::class, 'index']);
 
 
@@ -124,20 +113,25 @@ Route::delete('/chat/message/{messageId}', [ChatController::class, 'destroy']);
 
 Route::post('/upgrade-to-premium', [SubscriptionController::class, 'upgradeToPremium']);
 
-    Route::get('/subscription/callback', [SubscriptionController::class, 'handleCallback'])->name('subscription.callback');
     Route::get('/payment/status', [SubscriptionController::class, 'checkPaymentStatus']);
     Route::get('/transactions', [SubscriptionController::class, 'listTransactions']);
 // routes/api.php
 
     Route::post('/updateProfile', [ProfileController::class, 'updateProfile']);
 
-    Route::post('/acheter-jetons', [JetonController::class, 'acheterJetons']);
+// Marketplace
+Route::get('/jeton/market', [JetonController::class, 'index']);
+Route::post('/jeton/market/buy/{offer_id}', [JetonController::class, 'buy']);
 
-    Route::get('/jeton-transactions/{userId}', [JetonController::class, 'getUserTransactions']);
+// Achat direct plateforme
+Route::post('/jeton/purchase/platform', [JetonController::class, 'purchaseFromPlatform']);
 
-    Route::post('/jeton_market/buy/{offer_id}', [JetonMarketController::class, 'buy']);
-    
-    
+// Callback
+Route::get('/jeton/payment/callback', [JetonController::class, 'handleCallback']);
+
+// Vérification et historique
+Route::get('/jeton/transaction/{transaction_id}/status', [JetonController::class, 'checkTransactionStatus']);
+Route::get('/jeton/transactions/history', [JetonController::class, 'userTransactions']);
 
 
     Route::get('/wallets', [WalletController::class, 'index']);
@@ -156,6 +150,11 @@ Route::post('/upgrade-to-premium', [SubscriptionController::class, 'upgradeToPre
     
     Route::post('/record_view', [ProduitController::class, 'recordView']);
 });
+    Route::get('/subscription/callback', [SubscriptionController::class, 'handleCallback'])->name('subscription.callback');
+
+Route::get('/jeton/callback', [JetonController::class, 'handleCallback'])
+    ->name('jeton.callback');
+
 Route::get('/commercant/{commercant}', [CommercantController::class, 'show'])->name('commercant.show');
 
 
@@ -173,4 +172,4 @@ Route::get('/auth/google', [UserController::class, 'redirectToGoogle'])->name('g
 // Callback de Google (après connexion)
 Route::get('/auth/google/callback', [UserController::class, 'handleGoogleCallback'])->name('google.callback');
 
-    Route::get('/jeton_market/offers', [JetonMarketController::class, 'index']);
+    Route::get('/jeton_market/offers', [JetonController::class, 'index']);

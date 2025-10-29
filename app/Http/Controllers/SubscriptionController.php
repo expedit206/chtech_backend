@@ -15,6 +15,7 @@ class SubscriptionController extends Controller
         NotchPay::setPrivateKey(env('NOTCHPAY_PRIVATE_KEY'));
     }
 
+   
     public function upgradeToPremium(Request $request)
     {
         $user = $request->user();
@@ -25,33 +26,29 @@ class SubscriptionController extends Controller
 
         $validated = $request->validate([
             'subscription_type' => 'required|in:monthly,yearly',
-            'email' => 'email',
-            'name' => 'string',
-            'phone_number' => 'nullable|regex:/^6[0-9]{8}$/',
+            'email' => 'required|email',
         ]);
 
         $subscriptionType = $validated['subscription_type'];
-        $email = $validated['email']??'mciagnessi@gmail.com';
-        $name = $validated['name']??'dominique';
-        $phoneNumber = $validated['phone_number'] ?? null;
-        
+        $email = $validated['email'];
         $amount = $subscriptionType === 'monthly' ? 1000 : 50000;
         $typeAbonnement = $subscriptionType === 'monthly' ? 'mensuel' : 'annuel';
 
         try {
             $payment = Payment::initialize([
                 'amount' => $amount,
-                'currency' => 'XAF',
                 'email' => $email,
-                'name' => $name,
-                'phone' => $phoneNumber,
+                'currency' => 'XAF',
                 'reference' => 'PREMIUM_' . $user->id . '_' . time(),
-                'callback' => route('subscription.callback'), // URL de retour
+                'callback' => route('subscription.callback'),
                 'description' => 'Abonnement Premium ' . $typeAbonnement,
                 'metadata' => [
                     'user_id' => $user->id,
                     'subscription_type' => $subscriptionType,
-                ]
+                    'customer_id' => (string) $user->id,
+                    'order_id' => 'ORDER_' . $user->id . '_' . time()
+                ],
+                'channels' => ['mobile_money', 'card'],
             ]);
 
             // Enregistrer en attente
@@ -65,11 +62,11 @@ class SubscriptionController extends Controller
                 'date_transaction' => now(),
             ]);
 
+            // 🔥 Retourner l'URL de redirection pour le frontend
             return response()->json([
-                'message' => 'Paiement initialisé avec succès',
-                'authorization_url' => $payment->authorization_url,
+                'redirect_url' => $payment->authorization_url,
                 'reference' => $payment->transaction->reference,
-                'payment' => $payment,
+                'message' => 'Paiement initialisé avec succès'
             ], 200);
 
         } catch (\Exception $e) {
@@ -79,39 +76,30 @@ class SubscriptionController extends Controller
             ], 400);
         }
     }
-
     /**
-     * CALLBACK SEUL - Suffisant pour la plupart des cas
+     * CALLBACK - Gestion du retour de NotchPay
      */
     public function handleCallback(Request $request)
     {
         $reference = $request->query('reference');
+        $frontendUrl = env('FRONTEND_URL');
         
         if (!$reference) {
-            // return view('payment.error', ['message' => 'Référence manquante']);
-            return response()->json([
-                'message' => 'fallback reference',
-                'reference' => $reference,
-            ], 400);
+            // Rediriger vers le frontend avec erreur
+            return redirect($frontendUrl . 'profil?payment=error&message=reference_missing');
         }
 
         try {
-            // Vérifier IMMÉDIATEMENT le statut avec l'API NotchPay
-            $transaction =  Payment::verify($reference);
+            $transaction = Payment::verify($reference);
 
             $premiumTransaction = PremiumTransaction::where('transaction_id_mesomb', $reference)->first();
             
             if (!$premiumTransaction) {
-                         return response()->json([
-                'message' => 'Transaction non trouvée',
-                'reference' => $reference,
-            ], 400);
-                // return view('payment.error', ['message' => 'Transaction non trouvée']);
+                return redirect($frontendUrl . 'profil?payment=error&message=transaction_not_found&reference=' . $reference);
             }
 
             $user = $premiumTransaction->user;
 
-            // Vérifier le statut
             if (in_array($transaction->status, ['complete', 'success', 'completed'])) {
                 // ✅ PAIEMENT RÉUSSI
                 $premiumTransaction->update([
@@ -132,37 +120,25 @@ class SubscriptionController extends Controller
                     'subscription_ends_at' => $endsAt,
                 ]);
 
-                
-  return response()->json([
-                'message' => 'payment.success',
-                'reference' => $reference,
-                // return view('payment.success', [
-                //     'payment' => $transaction,
-                //     'user' => $user
-                ]);
+                // Rediriger vers le frontend avec succès
+                return redirect($frontendUrl . '/premium?payment=success&premium=activated&reference=' . $reference);
 
             } else {
                 // ❌ PAIEMENT ÉCHOUÉ
                 $premiumTransaction->update([
                     'statut' => 'echec',
                 ]);
-                  return response()->json([
-                'message' => 'Paiement non complété',
-                'reference' => $reference,
 
-                // return view('payment.failed', [
-                //     'payment' => $transaction,
-                //     'message' => 'Paiement non complété'
-                ]);
+                return redirect($frontendUrl . 'profil?payment=failed&reference=' . $reference . '&status=' . $transaction->status);
             }
 
         } catch (\Exception $e) {
-              return response()->json([
-                'message' => 'error de paiement',
+            \Log::error('Erreur callback NotchPay:', [
                 'reference' => $reference,
-            // return view('payment.error', [
-            //     'message' => 'Erreur: ' . $e->getMessage()
+                'error' => $e->getMessage()
             ]);
+
+            return redirect($frontendUrl . 'profil?payment=error&message=processing_error&reference=' . $reference);
         }
     }
 }
