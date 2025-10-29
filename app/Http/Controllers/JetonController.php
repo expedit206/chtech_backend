@@ -89,7 +89,8 @@ class JetonController extends Controller
 
             // Initialiser le paiement NotchPay
             $payment = Payment::initialize([
-                'amount' => $offer->total_prix,
+                'amount' => 50,
+                // 'amount' => $offer->total_prix,
                 'email' => 'mciagnessi@gmail.com',
                 'currency' => 'XAF',
                 'reference' => 'JETON_MKT_' . $transaction->id . '_' . time(),
@@ -151,7 +152,7 @@ class JetonController extends Controller
         ]);
 
         // Prix fixe plateforme
-        $prixUnitaire = 10; // 10 XAF par jeton
+        $prixUnitaire = 5; // 10 XAF par jeton
         $montantTotal = $validated['jeton_quantity'] * $prixUnitaire;
 
         DB::beginTransaction();
@@ -166,10 +167,11 @@ class JetonController extends Controller
                 'commission_plateforme' => 0,
                 'montant_net_vendeur' => 0,
                 'statut' => 'pending',
+                'notchpay_reference' => '',
             ]);
 
             $payment = Payment::initialize([
-                'amount' => $montantTotal,
+                'amount' => 50,
                 'email' => $validated['email'],
                 'currency' => 'XAF',
                 'reference' => 'JETON_PLAT_' . $transaction->id . '_' . time(),

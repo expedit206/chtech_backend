@@ -31,7 +31,7 @@ class SubscriptionController extends Controller
 
         $subscriptionType = $validated['subscription_type'];
         $email = $validated['email'];
-        $amount = $subscriptionType === 'monthly' ? 1000 : 50000;
+        $amount = $subscriptionType === 'monthly' ? 50 : 50000;
         $typeAbonnement = $subscriptionType === 'monthly' ? 'mensuel' : 'annuel';
 
         try {
