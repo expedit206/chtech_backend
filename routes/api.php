@@ -113,6 +113,9 @@ Route::delete('/chat/message/{messageId}', [ChatController::class, 'destroy']);
 
 Route::post('/upgrade-to-premium', [SubscriptionController::class, 'upgradeToPremium']);
 
+  Route::get('/premium/transaction/pending', [SubscriptionController::class, 'getPendingTransaction']);
+    Route::get('/premium/transaction/{id}/status', [SubscriptionController::class, 'checkTransactionStatus']);
+
     Route::get('/payment/status', [SubscriptionController::class, 'checkPaymentStatus']);
     Route::get('/transactions', [SubscriptionController::class, 'listTransactions']);
 // routes/api.php
@@ -151,6 +154,8 @@ Route::get('/jeton/transactions/history', [JetonController::class, 'userTransact
     Route::post('/record_view', [ProduitController::class, 'recordView']);
 });
     Route::get('/subscription/callback', [SubscriptionController::class, 'handleCallback'])->name('subscription.callback');
+
+
 
 Route::get('/jeton/callback', [JetonController::class, 'handleCallback'])
     ->name('jeton.callback');

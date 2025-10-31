@@ -21,7 +21,7 @@ class CollaborationController extends Controller
         // Collaborations envoyers (où l'utilisateur est le commerçant demandeur)
         $sentCollaborations = Collaboration::with('produit')
             ->where('commercant_id', $commercant->id)
-            ->get();
+            ->orderBy('created_at', 'desc')->get();
 
         // Collaborations reçues (où l'utilisateur est le propriétaire du produit)
         $receivedCollaborations = Collaboration::with(['produit' => function ($query) use ($user) {
@@ -32,7 +32,7 @@ class CollaborationController extends Controller
             $query->select('id')
                   ->from('collaborations')
                   ->where('commercant_id', $commercant->id);
-        })->get();
+        })->orderBy('created_at', 'desc')->get();
 
         return response()->json([
             'sent_collaborations' => $sentCollaborations->load('commercant'),

@@ -66,7 +66,6 @@ class JetonController extends Controller
         // Validation
         $validated = $request->validate([
             'email' => 'required|email',
-            'name' => 'required|string',
         ]);
 
         DB::beginTransaction();
@@ -148,7 +147,6 @@ class JetonController extends Controller
         $validated = $request->validate([
             'jeton_quantity' => 'required|integer|min:1',
             'email' => 'required|email',
-            'phone' => 'required|string'
         ]);
 
         // Prix fixe plateforme
