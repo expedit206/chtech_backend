@@ -25,7 +25,7 @@ class FirebaseService
     /**
      * Obtenir un token d'accès JWT pour l'API Firebase
      */
- private function getAccessToken()
+ public function getAccessToken()
     {
         return Cache::remember('firebase_access_token', 3500, function () {
             $now = time();
