@@ -15,12 +15,14 @@ use App\Http\Controllers\ProduitController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\CategoryController;
 
+use App\Http\Controllers\FirebaseController;
 use App\Http\Controllers\AbonnementController;
-use App\Http\Controllers\CommercantController;
 
+use App\Http\Controllers\CommercantController;
 use App\Http\Controllers\ParrainageController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\CollaborationController;
+use App\Http\Controllers\Api\NotificationController;
 
 Route::post('/login', [UserController::class, 'login']);
 Route::post('register', [UserController::class, 'register']);
@@ -152,6 +154,11 @@ Route::get('/jeton/transactions/history', [JetonController::class, 'userTransact
     
     
     Route::post('/record_view', [ProduitController::class, 'recordView']);
+
+     Route::post('/token', [NotificationController::class, 'storeToken']);
+    Route::post('/test', [NotificationController::class, 'testNotification']);
+    Route::delete('/token', [NotificationController::class, 'disableToken']);
+    Route::get('/tokens', [NotificationController::class, 'getUserTokens']);
 });
     Route::get('/subscription/callback', [SubscriptionController::class, 'handleCallback'])->name('subscription.callback');
 

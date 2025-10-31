@@ -17,29 +17,97 @@ la page produit doit recharger
 
 
 
+// Coller ce script dans Tinker en production
 
+echo "=== 🧪 TESTS PRODUCTION COMPLETS ===\n\n";
 
-use App\Models\User;
-use App\Models\Message;
-use App\Events\MessageSent;
+$firebaseService = app(App\Services\FirebaseService::class);
+$notificationService = app(App\Services\NotificationService::class);
 
-// Récupérer deux utilisateurs
-$sender = User::find(); // Remplacez 1 par l'ID d'un utilisateur existant
-$receiver = User::find(2); // Remplacez 2 par un autre ID d'utilisateur
+// 1. Test de base Firebase
+echo "1. 🔐 Test connexion Firebase... ";
+try {
+    $token = $firebaseService->getAccessToken();
+    echo "✅ OK (Token: " . substr($token, 0, 20) . "...)\n";
+} catch (Exception $e) {
+    echo "❌ ÉCHEC: " . $e->getMessage() . "\n";
+    exit;
+}
 
-// Créer un message
-$message = new Message();
-$message->sender_id = $sender->id;
-$message->receiver_id = $receiver->id;
-$message->content = "Test message from Tinker";
-$message->product_id = null; // Ou un ID de produit existant si nécessaire
-$message->save();
+// 2. Test d'envoi de notification
+echo "2. 📤 Test envoi notification... ";
+$testToken = 'production-test-' . uniqid();
+$result = $firebaseService->sendNotification(
+    $testToken,
+    "🧪 Test Production", 
+    "Ceci est un test depuis l'environnement de production!",
+    [
+        'type' => 'production_test',
+        'action_url' => 'https://espacecameroun.com',
+        'test_id' => uniqid(),
+        'timestamp' => now()->toISOString()
+    ]
+);
 
-// Compter les messages non lus
-$unreadMessages = Message::where('receiver_id', $receiver->id)->where('is_read', false)->count();
+echo $result['success'] ? "✅ ENVOI RÉUSSI\n" : "❌ ÉCHEC ENVOI\n";
+if (!$result['success']) {
+    echo "   Erreur: " . $result['error'] . "\n";
+    echo "   Détails: " . $result['details'] . "\n";
+}
 
-// Charger les relations
-$message->load('sender', 'receiver', 'product');
+// 3. Test avec un utilisateur réel
+echo "3. 👤 Test avec utilisateur réel... ";
+$user = App\Models\User::first();
+if ($user) {
+    $userTokens = App\Models\UserPushToken::where('user_id', $user->id)
+        ->where('is_active', true)
+        ->count();
+    
+    echo "Utilisateur #" . $user->id . " - " . $userTokens . " token(s) actif(s)\n";
+    
+    if ($userTokens > 0) {
+        $result = $notificationService->notifyUser(
+            $user->id,
+            "🎉 Test Réussi!",
+            "Les notifications fonctionnent parfaitement en production!",
+            [
+                'type' => 'production_success',
+                'action_url' => 'https://espacecameroun.com',
+                'timestamp' => now()->toISOString()
+            ]
+        );
+        
+        echo "   Résultat: " . ($result['success'] ? '✅ NOTIFICATION ENVOYÉE' : '❌ ÉCHEC') . "\n";
+    } else {
+        echo "   ℹ️  Aucun token actif pour cet utilisateur\n";
+    }
+} else {
+    echo "❌ Aucun utilisateur trouvé\n";
+}
 
-// Déclencher l'événement
-broadcast(new MessageSent($message, $sender, $receiver, $unreadMessages))->toOthers();
+// 4. Statistiques système
+echo "4. 📊 Statistiques système...\n";
+$totalTokens = App\Models\UserPushToken::count();
+$activeTokens = App\Models\UserPushToken::where('is_active', true)->count();
+$usersWithTokens = App\Models\User::has('pushTokens')->count();
+
+echo "   - Tokens totaux: " . $totalTokens . "\n";
+echo "   - Tokens actifs: " . $activeTokens . "\n";
+echo "   - Utilisateurs avec tokens: " . $usersWithTokens . "\n";
+
+// 5. Vérification environnement
+echo "5. 🌍 Environnement...\n";
+echo "   - App: " . config('app.name') . "\n";
+echo "   - URL: " . config('app.url') . "\n";
+echo "   - HTTPS: " . (request()->secure() ? '✅ Actif' : '❌ Inactif') . "\n";
+echo "   - Env: " . app()->environment() . "\n";
+
+echo "\n=== 🎯 RÉSUMÉ ===\n";
+echo "Backend Firebase: " . (isset($token) ? '✅ OPÉRATIONNEL' : '❌ HORS SERVICE') . "\n";
+echo "Envoi notifications: " . ($result['success'] ?? false ? '✅ OPÉRATIONNEL' : '❌ PROBLÈME') . "\n";
+echo "Environnement: " . (app()->isProduction() ? '✅ PRODUCTION' : '⚠️  AUTRE') . "\n";
+
+echo "\n🔍 Pour tester la réception: \n";
+echo "1. Ouvrez https://espacecameroun.com dans Chrome/Firefox\n";
+echo "2. Autorisez les notifications\n";
+echo "3. Utilisez l'interface de test sur /test-notifications\n";
