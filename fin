@@ -105,7 +105,7 @@ echo "   - Env: " . app()->environment() . "\n";
 echo "\n=== 🎯 RÉSUMÉ ===\n";
 echo "Backend Firebase: " . (isset($token) ? '✅ OPÉRATIONNEL' : '❌ HORS SERVICE') . "\n";
 echo "Envoi notifications: " . ($result['success'] ?? false ? '✅ OPÉRATIONNEL' : '❌ PROBLÈME') . "\n";
-echo "Environnement: " . (app()->isProduction() ? '✅ PRODUCTION' : '⚠️  AUTRE') . "\n";
+echo "Environnement: " . (app()->isProduction() ? '✅ PRODUCTION' : '⚠️   AUTRE') . "\n";
 
 echo "\n🔍 Pour tester la réception: \n";
 echo "1. Ouvrez https://espacecameroun.com dans Chrome/Firefox\n";
