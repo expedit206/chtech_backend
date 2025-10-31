@@ -10,7 +10,6 @@
         "hachther/mesomb-php": "*",
         "intervention/image": "^3.11",
         "intervention/image-laravel": "^1.5",
-        "beste/json": "^1.5.1",
         "laravel/framework": "^12.0",
         "laravel/reverb": "^1.5",
         "laravel/sanctum": "^4.2",
