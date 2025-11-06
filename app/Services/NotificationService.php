@@ -1,117 +1,170 @@
 <?php
-// app/Services/NotificationService.php
 
 namespace App\Services;
 
-use App\Models\User;
-use App\Models\UserPushToken;
+use App\Services\FirebaseService;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 
 class NotificationService
 {
-    protected $firebaseService;
+    protected $jwtService;
+    protected $projectId;
 
-    public function __construct(FirebaseService $firebaseService)
+    public function __construct(FirebaseService $jwtService)
     {
-        $this->firebaseService = $firebaseService;
+        $this->jwtService = $jwtService;
+        $this->projectId = env('FIREBASE_PROJECT_ID');
     }
 
     /**
-     * Notifier un utilisateur (Web Push)
+     * Envoyer une notification à un device spécifique
      */
-    public function notifyUser($userId, $title, $body, $data = [], $options = [])
+    public function sendToDevice(string $deviceToken, array $notification, array $data = [])
     {
         try {
-            $tokens = UserPushToken::where('user_id', $userId)
-                ->where('is_active', true)
-                ->where('device_type', 'web') // Seulement les tokens web
-                ->pluck('fcm_token')
-                ->toArray();
-
-            if (empty($tokens)) {
-                Log::warning('Aucun token Web Push actif', ['user_id' => $userId]);
-                return ['success' => false, 'error' => 'Aucun token web actif'];
+            $accessToken = $this->jwtService->getAccessToken();
+            
+            if (!$accessToken) {
+                throw new \Exception('Could not get access token');
             }
 
-            // Options par défaut pour le web
-            $webOptions = array_merge([
-                'icon' => '/icons/icon-192x192.png',
-                'badge' => '/icons/badge-72x72.png',
-                'require_interaction' => false,
-                'silent' => false
-            ], $options);
+            $url = "https://fcm.googleapis.com/v1/projects/{$this->projectId}/messages:send";
 
-            $results = [];
-            foreach ($tokens as $token) {
-                $results[$token] = $this->firebaseService->sendNotification(
-                    $token, $title, $body, $data, $webOptions
-                );
+            $message = [
+                'message' => [
+                    'token' => $deviceToken,
+                    'notification' => $notification,
+                    'data' => $data,
+                    'android' => [
+                        'priority' => 'high'
+                    ],
+                    'apns' => [
+                        'payload' => [
+                            'aps' => [
+                                'content-available' => 1,
+                                'sound' => 'default'
+                            ]
+                        ],
+                        'headers' => [
+                            'apns-priority' => '10'
+                        ]
+                    ],
+                    'webpush' => [
+                        'headers' => [
+                            'Urgency' => 'high'
+                        ]
+                    ]
+                ]
+            ];
+
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $accessToken,
+                'Content-Type' => 'application/json',
+            ])->post($url, $message);
+
+            if ($response->successful()) {
+                Log::info('Notification sent successfully', [
+                    'device_token' => $deviceToken,
+                    'response' => $response->json()
+                ]);
+                return $response->json();
+            } else {
+                Log::error('Failed to send notification', [
+                    'status' => $response->status(),
+                    'response' => $response->body()
+                ]);
+                return 'false';
             }
-
-            Log::info('📨 Notifications Web Push envoyées', [
-                'user_id' => $userId,
-                'tokens_count' => count($tokens),
-                'title' => $title
-            ]);
-
-            return ['success' => true, 'results' => $results];
 
         } catch (\Exception $e) {
-            Log::error('Erreur notification Web Push', [
-                'user_id' => $userId,
-                'error' => $e->getMessage()
-            ]);
-            return ['success' => false, 'error' => $e->getMessage()];
+            Log::error('Error sending notification: ' . $e->getMessage());
+            return $e;
         }
     }
 
     /**
-     * Notifications spécifiques avec actions
+     * Envoyer une notification à multiple devices
      */
-    public function notifyNewMessage($userId, $senderName, $message, $chatId)
+    public function sendToMultipleDevices(array $deviceTokens, array $notification, array $data = [])
     {
-        return $this->notifyUser($userId,
-            "💬 {$senderName}",
-            substr($message, 0, 100) . (strlen($message) > 100 ? '...' : ''),
-            [
-                'type' => 'new_message',
-                'chat_id' => $chatId,
-                'sender' => $senderName,
-                'action_url' => "/chats/{$chatId}",
-                'timestamp' => now()->toISOString()
-            ],
-            [
-                'actions' => [
-                    [
-                        'action' => 'open_chat',
-                        'title' => '💬 Ouvrir',
-                        'icon' => '/icons/chat-icon.png'
-                    ],
-                    [
-                        'action' => 'mark_read',
-                        'title' => '✅ Lu',
-                        'icon' => '/icons/check-icon.png'
-                    ]
-                ],
-                'require_interaction' => true
-            ]
-        );
+        $results = [];
+        
+        foreach ($deviceTokens as $token) {
+            $results[$token] = $this->sendToDevice($token, $notification, $data);
+        }
+
+        return $results;
     }
 
-    public function notifyJetonPurchase($userId, $jetonCount)
+    /**
+     * Envoyer une notification à un topic
+     */
+    public function sendToTopic(string $topic, array $notification, array $data = [])
     {
-        return $this->notifyUser($userId,
-            "🎉 {$jetonCount} jetons achetés!",
-            "Vos jetons ont été crédités avec succès",
-            [
-                'type' => 'jeton_purchase',
-                'jeton_count' => $jetonCount,
-                'action_url' => '/jeton-history'
-            ],
-            [
-                'icon' => '/icons/coin-icon.png',
-                'silent' => false
-            ]
-        );
+        try {
+            $accessToken = $this->jwtService->getAccessToken();
+            
+            if (!$accessToken) {
+                throw new \Exception('Could not get access token');
+            }
+
+            $url = "https://fcm.googleapis.com/v1/projects/{$this->projectId}/messages:send";
+
+            $message = [
+                'message' => [
+                    'topic' => $topic,
+                    'notification' => $notification,
+                    'data' => $data,
+                    'android' => [
+                        'priority' => 'high'
+                    ],
+                    'apns' => [
+                        'payload' => [
+                            'aps' => [
+                                'content-available' => 1
+                            ]
+                        ]
+                    ]
+                ]
+            ];
+
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $accessToken,
+                'Content-Type' => 'application/json',
+            ])->post($url, $message);
+
+            return $response->successful();
+
+        } catch (\Exception $e) {
+            Log::error('Error sending topic notification: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Souscrire un device à un topic
+     */
+    public function subscribeToTopic(string $deviceToken, string $topic)
+    {
+        try {
+            $accessToken = $this->jwtService->getAccessToken();
+            
+            $url = "https://iid.googleapis.com/v1/projects/{$this->projectId}/topics/{$topic}/rel/topics/{$topic}";
+
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $accessToken,
+                'Content-Type' => 'application/json',
+            ])->post($url, [
+                'to' => "/topics/{$topic}",
+                'registration_tokens' => [$deviceToken]
+            ]);
+
+            return $response->successful();
+
+        } catch (\Exception $e) {
+            Log::error('Error subscribing to topic: ' . $e->getMessage());
+            return false;
+        }
     }
 }

@@ -51,10 +51,7 @@ class Produit extends Model
         return $this->belongsTo(Commercant::class);
     }
 
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
+        
     public function collaborations()
     {
         return $this->hasMany(Collaboration::class);

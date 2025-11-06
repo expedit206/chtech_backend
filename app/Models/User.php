@@ -104,5 +104,12 @@ class User extends Authenticatable
         return $this->hasMany(ProductFavorite::class);
     }
 
+
+
+    //device token
+    public function deviceTokens()
+    {
+        return $this->hasMany(DeviceToken::class);
+    }
  
 }

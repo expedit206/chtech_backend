@@ -12,7 +12,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
+use App\Services\NotificationService;
 use Illuminate\Support\Facades\Broadcast;
+use App\Services\NotificationTemplateService;
 
 class ChatController extends Controller
 {
@@ -196,6 +198,20 @@ $lastMessageType = $lastMessage->type ?? 'text';
 
     try {
         broadcast(new MessageSent($message, $user, $receiver, $unreadMessages))->toOthers();
+        $token = $message->receiver->deviceTokens?->where('is_active', true)->pluck('device_token')?->first() ?? null;
+        if($token){
+          
+            $notificationService = app()->make(NotificationService::class);
+                    
+            $template = NotificationTemplateService::newMessage($message);
+            $notificationService->sendToDevice(
+                $token,
+             $template['notification'], $template['data']);
+        }else{
+            
+            Log::info('Aucun device token actif pour l\'utilisateur '.$receiver->id);
+        }
+
         Log::info('MessageSent diffusé', ['message_id' => $message->id]);
     } catch (\Exception $e) {
         Log::error('Diffusion échouée : ' . $e->getMessage());

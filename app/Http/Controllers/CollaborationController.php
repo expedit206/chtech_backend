@@ -70,6 +70,31 @@ class CollaborationController extends Controller
             'statut' => 'en_attente',
         ]);
 
+            try {
+          
+            // charger les relations utiles
+            $produit->loadMissing('commercant.user');
+            $owner = $produit->commercant->user ?? null;
+
+            // $collaboration->load(['produit', 'commercant']);
+            if ($owner) {
+                $notificationService = app()->make(\App\Services\NotificationService::class);
+                $template = \App\Services\NotificationTemplateService::collaborationRequested($collaboration);
+
+                $deviceToken = $owner->deviceTokens?->where('is_active', true)->pluck('device_token')->first() ?? null;
+                if ($deviceToken) {
+                    // signature attendue : (deviceToken, notification, data)
+                    $notificationService->sendToDevice($deviceToken, $template['notification'], $template['data']);
+                    \Illuminate\Support\Facades\Log::error('Envoi notification collaborationRequested reussi'.  $owner );
+                }else{
+                \Illuminate\Support\Facades\Log::error('pas de token');
+
+                }
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Envoi notification collaborationRequested échoué : ' . $e, ['collaboration_id' => $collaboration->id]);
+        }
+
         return response()->json(['message' => 'Demande de collaboration envoyée', 'collaboration' => $collaboration]);
     }
 

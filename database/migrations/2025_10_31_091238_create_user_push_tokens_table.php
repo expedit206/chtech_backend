@@ -8,17 +8,17 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('user_push_tokens', function (Blueprint $table) {
+        Schema::create('device_tokens', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->string('fcm_token')->unique();
+            $table->string('device_token')->unique();
             $table->string('device_type')->nullable(); // web, android, ios
             $table->string('browser')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             
             $table->index(['user_id', 'is_active']);
-            $table->index('fcm_token');
+            $table->index('device_token');
         });
     }
 
