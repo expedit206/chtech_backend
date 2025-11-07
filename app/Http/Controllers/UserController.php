@@ -180,6 +180,7 @@ class UserController extends Controller
             return redirect()->away($frontendUrl . '?error=' . urlencode('Erreur lors de la ' . ($action === 'register' ? 'inscription' : 'connexion') . ' avec Google: ' . $e->getMessage()));
         }
     }
+    
     // Déconnexion (existant, inchangé)
     public function logout(Request $request)
     {
