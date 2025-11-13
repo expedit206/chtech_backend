@@ -166,6 +166,7 @@ Route::get('/jeton/transactions/history', [JetonController::class, 'userTransact
 
 
 
+
 Route::get('/jeton/callback', [JetonController::class, 'handleCallback'])
     ->name('jeton.callback');
 
@@ -187,3 +188,5 @@ Route::get('/auth/google', [UserController::class, 'redirectToGoogle'])->name('g
 Route::get('/auth/google/callback', [UserController::class, 'handleGoogleCallback'])->name('google.callback');
 
     Route::get('/jeton_market/offers', [JetonController::class, 'index']);
+
+    Route::post('/auth/google/native', [UserController::class, 'handleGoogleNative']);

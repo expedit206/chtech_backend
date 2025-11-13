@@ -14,7 +14,7 @@ use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
-    // Inscription (existant, inchangé)
+    // Inscription
     public function register(Request $request)
     {
         $request->validate([
@@ -49,7 +49,7 @@ class UserController extends Controller
         ], 201);
     }
 
-    // Connexion (existant, inchangé)
+    // Connexion
     public function login(Request $request)
     {
         $request->validate([
@@ -75,7 +75,7 @@ class UserController extends Controller
         ]);
     }
 
-    // Redirection vers Google
+    // Redirection vers Google (WEB uniquement)
     public function redirectToGoogle(Request $request)
     {
         $driver = Socialite::driver('google')->stateless();
@@ -83,10 +83,10 @@ class UserController extends Controller
         // Build state with action and parrain_code
         $state = [];
         if ($request->query('action')) {
-            $state['action'] = $request->query('action'); // e.g., 'register' or 'login'
+            $state['action'] = $request->query('action');
         }
         if ($request->query('parrain_code')) {
-            $state['parrain_code'] = $request->query('parrain_code'); // e.g., '9SKDOM'
+            $state['parrain_code'] = $request->query('parrain_code');
         }
 
         // Get the redirect URL from Socialite
@@ -102,6 +102,7 @@ class UserController extends Controller
         return redirect()->away($redirectUrl);
     }
 
+    // Callback Google (WEB uniquement)
     public function handleGoogleCallback(Request $request)
     {
         $action = 'login'; // Default
@@ -112,17 +113,9 @@ class UserController extends Controller
             $parrainCode = null;
             if ($request->state) {
                 parse_str(urldecode($request->state), $stateParams);
-                // return response()->json([
-                //     'state' => $request->state,
-                //     'action' => $stateParams['action']
-                // ], 200);
-
                 $action = $stateParams['action'] ?? 'login';
                 $parrainCode = $stateParams['parrain_code'] ?? null;
             }
-
-            // Debug: Check state parsing
-            // dd($request->state, $stateParams);
 
             // Validate parrain_code if provided
             if ($parrainCode) {
@@ -172,23 +165,25 @@ class UserController extends Controller
             // Generate Sanctum token
             $token = $user->createToken('auth_token')->plainTextToken;
 
-            // Redirect to frontend
+            // REDIRECTION UNIQUEMENT POUR WEB
             $frontendUrl = env('FRONTEND_URL', 'http://localhost:4000') . '/auth/google/callback';
             return redirect()->away($frontendUrl . '?token=' . urlencode($token) . '&user=' . urlencode(json_encode($user->load('commercant', 'niveaux_users.parrainageNiveau'))));
+
         } catch (\Exception $e) {
+            // Gestion d'erreur pour WEB uniquement
             $frontendUrl = env('FRONTEND_URL', 'http://localhost:4000') . '/' . ($action === 'register' ? 'register' : 'login');
             return redirect()->away($frontendUrl . '?error=' . urlencode('Erreur lors de la ' . ($action === 'register' ? 'inscription' : 'connexion') . ' avec Google: ' . $e->getMessage()));
         }
     }
     
-    // Déconnexion (existant, inchangé)
+    // Déconnexion
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
         return response()->json(['message' => 'Déconnexion réussie'], 200);
     }
 
-    // Mettre à jour les notifications (existant, inchangé)
+    // Mettre à jour les notifications
     public function updateNotifications(Request $request)
     {
         $user = $request->user();
@@ -200,20 +195,23 @@ class UserController extends Controller
         return response()->json(['user' => $user]);
     }
 
-    // Compteurs pour badges (existant, inchangé)
+    // Compteurs pour badges
     public function badges(Request $request)
     {
         $user = $request->user();
         $commercant = $user->commercant;
-         $unreadMessagesCount = Message::where('receiver_id', $user->id)
+        
+        $unreadMessagesCount = Message::where('receiver_id', $user->id)
             ->where('is_read', false)
             ->count();
+            
         if (!$commercant) {
             return response()->json([
                 'collaborations_pending' => 0,
                 'unread_messages' => $unreadMessagesCount,
             ]);
         }
+        
         $collaborationsPendingCount = Collaboration::where(function ($query) use ($commercant) {
             $query->where('commercant_id', $commercant->id)
                 ->orWhereHas('produit.commercant', function ($query) use ($commercant) {
@@ -222,31 +220,25 @@ class UserController extends Controller
         })->where('statut', 'en_attente')
             ->count();
        
-        // $conversations = $user->conversations()->withCount(['messages as unread_count' => function ($query) use ($user) {
-        //     $query->where('receiver_id', $user->id)->where('is_read', false);
-        // }])->get();
         return response()->json([
             'collaborations_pending' => $collaborationsPendingCount,
             'unread_messages' => $unreadMessagesCount,
-            // 'conversations' => $conversations,
         ]);
     }
 
-    // Récupérer le profil utilisateur (existant, inchangé)
+    // Récupérer le profil utilisateur
     public function profile(Request $request)
     {
         $user = $request->user();
         if (!$user) {
             return response()->json(['message' => 'Utilisateur non authentifié'], 401);
         }
-        //     $user->favoris()->count(),
 
         $user['favoris_count'] = $user->favoris_count();
         $user['conversations_count'] = $user->conversations_count();
         $user['products_count'] = $user->commercant?->produits?->count() ?? 0;
         $user->load('commercant', 'niveaux_users.parrainageNiveau');
-        return response()->json(['user' => $user,
-    // 'favorites_count'=> $user->favoris_count()
-    ], 200);
+        
+        return response()->json(['user' => $user], 200);
     }
 }

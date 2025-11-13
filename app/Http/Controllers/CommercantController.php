@@ -23,10 +23,10 @@ class CommercantController extends Controller
         // return response()->json($);
         if (!$user->commercant) {
             return response()->json(['message' => 'Accès réservé aux commerçants'], 403);
-        }
+        } 
 
         $produits = Produit::where('commercant_id', $user->commercant->id)
-            ->with('category')
+              ->with('category')
             ->withCount('favorites') // Charger le nombre de favoris
             ->withCount('views')    // Charger le nombre de vues
             ->orderBy('created_at', 'desc')    // Charger le nombre de vues
