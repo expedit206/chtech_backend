@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('wallets', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->foreignUuid('user_id')->constrained('users')->onDelete('cascade');
             $table->string('phone_number')->unique()->regex('/^6[0-9]{8}$/'); // 9 chiffres commençant par 6
             $table->enum('payment_service', ['ORANGE', 'MTN'])->default('ORANGE');
             $table->boolean('is_verified')->default(false); // Optionnel : pour vérifier le numéro

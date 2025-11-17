@@ -16,6 +16,18 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory; // <---- Ajout de HasApiTokens
 
+
+       protected $keyType = 'string';
+    public $incrementing = false;
+
+    protected static function booted()
+    {
+        static::creating(function ($model) {
+            if (empty($model->{$model->getKeyName()})) {
+                $model->{$model->getKeyName()} = (string) \Str::uuid();
+            }
+        });
+    }
     protected $fillable = [
         'id',
         'nom',
@@ -36,6 +48,12 @@ class User extends Authenticatable
         'mot_de_passe',
         'remember_token', // utile pour masquer si tu utilises remember
     ];
+
+
+
+    //uuid string 
+
+
 
     public function getAuthPassword()
     {

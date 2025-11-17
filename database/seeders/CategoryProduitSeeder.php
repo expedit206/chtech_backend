@@ -4,10 +4,11 @@ namespace Database\Seeders;
 
 use App\Models\Category;
 use Illuminate\Support\Str;
+use App\Models\CategoryProduit;
 use Illuminate\Database\Seeder;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 
-class CategorySeeder extends Seeder
+class CategoryProduitSeeder extends Seeder
 {
     /**
      * Run the database seeds.
@@ -42,7 +43,7 @@ class CategorySeeder extends Seeder
         ];
 
         foreach ($categories as $nom) {
-            Category::create([
+            CategoryProduit::create([
                 'id' => Str::uuid(),
                 'nom' => $nom,
             ]);

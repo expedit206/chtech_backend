@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('boosts', function (Blueprint $table) {
         $table->id();
-        $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+        $table->foreignUuid('user_id')->constrained('users')->onDelete('cascade');
         $table->foreignUuid('produit_id')->nullable()->constrained('produits')->onDelete('set null');
         $table->timestamp('start_date');
         $table->timestamp('end_date')->nullable();

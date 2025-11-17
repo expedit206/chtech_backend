@@ -11,8 +11,8 @@ return new class extends Migration
             $table->id();
             
             // Relations
-            $table->foreignId('acheteur_id')->constrained('users')->onDelete('cascade');
-            $table->foreignId('vendeur_id')->nullable()->constrained('users')->onDelete('cascade');
+            $table->foreignUuid('acheteur_id')->constrained('users')->onDelete('cascade');
+            $table->foreignUuid('vendeur_id')->nullable()->constrained('users')->onDelete('cascade');
             $table->foreignId('offer_id')->nullable()->constrained('jeton_offers')->onDelete('cascade');
             
             // Type de transaction

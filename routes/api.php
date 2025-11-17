@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\JetonController;
@@ -13,19 +14,23 @@ use Illuminate\Support\Facades\Broadcast;
 use App\Http\Controllers\WalletController;
 use App\Http\Controllers\ProduitController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\CategoryController;
 
+use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\FirebaseController;
-use App\Http\Controllers\AbonnementController;
 
-use App\Http\Controllers\CommercantController;
+use App\Http\Controllers\AbonnementController;
 use App\Http\Controllers\ParrainageController;
+use App\Http\Controllers\ProduitUserController;
+use App\Http\Controllers\ServiceUserController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\CollaborationController;
-use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PasswordResetController;
+use App\Http\Controllers\CategoryProduitController;
+use App\Http\Controllers\CategoryServiceController;
 
-Route::post('/login', [UserController::class, 'login']);
-Route::post('register', [UserController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login']);
+Route::post('register', [AuthController::class, 'register']);
 
 // Route::post('/broadcasting/aut', function () {
 //     return \Auth::user();
@@ -34,12 +39,20 @@ Route::post('register', [UserController::class, 'register']);
 // Route::get('/', function () {
 //     return view('welcome'); // Laravel va chercher resources/views/welcome.blade.php
 // });
-Route::get('/categories', [CategoryController::class, 'index']);
-// Route::get('/produits/related/{produit}', [CategoryController::class, 'relatedProduct'])->name('categories.index');
+Route::get('/produits/categories', [CategoryProduitController::class, 'index']);
+// Route::get('/produits/related/{produit}', [CategoryProduitController::class, 'relatedProduct'])->name('categories.index');
     // Routes protégées
-    // Route::get('produits', [ProduitController::class, 'index']);
+    Route::get('produits', [ProduitController::class, 'index']);
     
+          
+    Route::post('/password/generate-token', [PasswordResetController::class, 'generateResetToken']);
+    Route::post('/password/reset', [PasswordResetController::class, 'resetPassword']);
+    Route::post('/password/verify-token', [PasswordResetController::class, 'verifyToken']);
+
     Route::middleware('auth:sanctum')->group(function () {
+
+        
+
 
         
     Route::get('produits', [ProduitController::class, 'index']);
@@ -54,7 +67,7 @@ Route::get('/categories', [CategoryController::class, 'index']);
 
     Route::post('/profile/photo', [ProfileController::class, 'updateProfilePhoto']); // Nouvelle route
     Route::post('/updatePassword', [ProfileController::class, 'updatePassword']); // Nouvelle route
-    Route::post('logout', [UserController::class, 'logout']);
+    // Route::post('logout', [ProduitUserController::class, 'logout']);
 
 
     // Route::post('produits', [ProduitController::class, 'store'])->middleware('premium:product');
@@ -67,26 +80,25 @@ Route::get('/categories', [CategoryController::class, 'index']);
         // Route::post('abonnements', [AbonnementController::class, 'store']);
         Route::post('parrainages', [ParrainageController::class, 'store']);
         
-        Route::post('/commercants', [CommercantController::class, 'create'])->name('commercant.store');
+        // Route::post('/commercants', [ProduitUserController::class, 'create'])->name('commercant.store');
 
-    Route::get('/commercant/produits', [CommercantController::class, 'produits'])->name('commercant.produits');
-    Route::post('/commercant/produits', [CommercantController::class, 'storeProduit'])->name('commercant.produits.store')->middleware('premium:product');
-    Route::delete('/commercant/produits/{produit}', [CommercantController::class, 'destroyProduit'])->name('commercant.produits.destroy');
-    Route::get('/commercant/profil', [CommercantController::class, 'profil'])->name('commercant.profil');
-    Route::post('/commercant/update', [CommercantController::class, 'updateProfil'])->name('commercant.profil.update');
-    Route::post('/commercant/produits/{id}', [CommercantController::class, 'updateProduit'])->name('commercant.produits.update');
-    // Route::get('/commercant/{commercant}', [CommercantController::class, 'show'])->name('commercant.show');
-    Route::post('/commercant/{commercantId}/rate', [CommercantController::class, 'rate']);
+    Route::get('/user/mesProduits', [ProduitUserController::class, 'produits']);
+    Route::post('/user/produits', [ProduitUserController::class, 'storeProduit']);
+    Route::post('/user/delete/produit/{produit}', [ProduitUserController::class, 'destroyProduit']);
+    // Route::post('/commercant/update', [ProduitUserController::class, 'updateProfil'])->name('commercant.profil.update');
+    Route::post('/user/produits/{id}', [ProduitUserController::class, 'updateProduit']);
+    // Route::get('/commercant/{commercant}', [ProduitUserController::class, 'show'])->name('commercant.show');
+    // Route::post('/commercant/{commercantId}/rate', [ProduitUserController::class, 'rate']);
     
-    Route::post('/commercant/verify-email', [CommercantController::class, 'verifyEmail']);
-    Route::post('/commercant/resend-verification', [CommercantController::class, 'resendVerification']);
+    // Route::post('/commercant/verify-email', [ProduitUserController::class, 'verifyEmail']);
+    // Route::post('/commercant/resend-verification', [ProduitUserController::class, 'resendVerification']);
 
-    Route::put('/user/notifications', [UserController::class, 'updateNotifications'])->name('user.notifications.update');   
+    // Route::put('/user/notifications', [ProduitUserController::class, 'updateNotifications'])->name('user.notifications.update');   
 
 
     
     Route::get('/user/badges', [UserController::class, 'badges'])->name('user.badges');
-    Route::get('/user/parrainage', [UserController::class, 'getParrainage']);
+    // Route::get('/user/parrainage', [ProduitUserController::class, 'getParrainage']);
 
 
     Route::post('/produits/{id}/favorite', [ProduitController::class, 'favorite']);
@@ -160,8 +172,24 @@ Route::get('/jeton/transactions/history', [JetonController::class, 'userTransact
     Route::delete('/token', [NotificationController::class, 'disableToken']);
     Route::get('/tokens', [NotificationController::class, 'getUserTokens']);
 
+        // CRUD Services
+
+    Route::get('/services/mes-services', [ServiceUserController::class, 'mesServices']);
+    Route::post('/services', [ServiceUserController::class, 'store']);
+    Route::post('/services/{id}', [ServiceUserController::class, 'update']);
+    Route::delete('/services/{id}', [ServiceUserController::class, 'destroy']);
+    Route::patch('/services/{id}/toggle-disponibilite', [ServiceUserController::class, 'toggleDisponibilite']);
+    
     
 });
+Route::get('/services/categories', [CategoryServiceController::class, 'index']);
+
+
+Route::get('/services', [ServiceController::class, 'index']);
+Route::get('/services/search', [ServiceController::class, 'search']);
+Route::get('/services/{id}', [ServiceController::class, 'show']);
+
+
     Route::get('/subscription/callback', [SubscriptionController::class, 'handleCallback'])->name('subscription.callback');
 
 
@@ -170,7 +198,7 @@ Route::get('/jeton/transactions/history', [JetonController::class, 'userTransact
 Route::get('/jeton/callback', [JetonController::class, 'handleCallback'])
     ->name('jeton.callback');
 
-Route::get('/commercant/{commercant}', [CommercantController::class, 'show'])->name('commercant.show');
+Route::get('/commercant/{commercant}', [ProduitUserController::class, 'show'])->name('commercant.show');
 
 
 
@@ -182,11 +210,11 @@ Route::get('/public-produits/{produit}', [ProduitController::class, 'publicShow'
 
 Route::get('/public-produits', [ProduitController::class, 'publicIndex']); // Nouvelle route publique
 
-Route::get('/auth/google', [UserController::class, 'redirectToGoogle'])->name('google.login');
+Route::get('/auth/google', [AuthController::class, 'redirectToGoogle'])->name('google.login');
 
 // Callback de Google (après connexion)
-Route::get('/auth/google/callback', [UserController::class, 'handleGoogleCallback'])->name('google.callback');
+Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback'])->name('google.callback');
 
     Route::get('/jeton_market/offers', [JetonController::class, 'index']);
 
-    Route::post('/auth/google/native', [UserController::class, 'handleGoogleNative']);
+    Route::post('/auth/google/native', [ProduitUserController::class, 'handleGoogleNative']);

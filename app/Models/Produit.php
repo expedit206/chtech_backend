@@ -28,8 +28,8 @@ class Produit extends Model
     ];
     protected $fillable = [
         'id',
-        'commercant_id',
-        'category_id',
+        'user_id',
+        'category_produits_id',
         'nom',
         'ville',
         'description',
@@ -37,8 +37,9 @@ class Produit extends Model
         'quantite',
         'photos',
         'collaboratif',
-        'marge_min',
-        'original_commercant_id'
+        'marge_revente_min',
+        'condition',
+        'original_user_id'
     ];
     // protected $appends = ['favorites_count', 'views_count'];
     

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('product_favorites', function (Blueprint $table) {
             $table->id();
             $table->foreignUuid('produit_id')->constrained()->onDelete('cascade');
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignUuid('user_id')->constrained()->onDelete('cascade');
             $table->index(['produit_id', 'user_id']);
             $table->timestamps();
         });

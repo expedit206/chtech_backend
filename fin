@@ -1,39 +1,67 @@
-chaque commercant cest 1 jeton
+CREATE TABLE Services (
+    id_service INT PRIMARY KEY AUTO_INCREMENT,
 
-//connexio avec google
-message zone message
-confirm mot de passe
-change mot de passe
-email comercnat code
-milti langue
+-- Références
+id_utilisateur INT NOT NULL, id_categorie INT NOT NULL,
 
-test double transaction
-mode premium avantage
-chargement home
+-- Informations de base
+titre VARCHAR(255) NOT NULL, description TEXT NOT NULL,
 
-algo affichage produit
+-- Type et tarification
+type_service ENUM(
+    'prix_fixe',
+    'tarif_horaire',
+    'negociable'
+) DEFAULT 'negociable',
+prix DECIMAL(10, 2) NULL, -- Peut être NULL si négociable
+devise ENUM('XAF', 'EUR', 'USD') DEFAULT 'XAF',
 
-la page produit doit recharger
+-- Détails professionnels
+annees_experience INT,
+competences JSON, -- Liste des compétences ["Plomberie", "Électricité", etc.]
+qualifications TEXT, -- Diplômes, certifications
 
+-- Localisation
+localisation VARCHAR(100) NOT NULL,
+ville VARCHAR(100),
 
-// Initialise le service
-$notificationService = app()->make(App\Services\NotificationService::class);
+-- Disponibilité
+disponibilite ENUM(
+    'disponible',
+    'indisponible',
+) DEFAULT 'disponible',
+horaires_disponibilite JSON, -- {"lundi": ["09:00-12:00", "14:00-18:00"], ...}
 
-// Envoie une notification de test
-$result = $notificationService->sendToDevice(
-    'fs9Ez-SUVH0f6p0eVxDvQH:APA91bGSqZumx1xTXvs-NJ5UOP1tiiBXEpuwxKF6YErAnIBqAr0fTRB9pUbxV-tzq1WgtiQ1XL4CZf25H_mh9Sv4v0AuE4Teu0Yjnl2pKWGHfHRTBFQeGTE',
-    [
-        'title' => 'Test depuis Tinker! 🎉',
-        'body' => 'Félicitations! Tes notifications fonctionnent!',
+-- Médias
+images JSON, -- URLs des images
 
-             ],
-    [
-        'type' => 'test',
-            'url' => url('/login'),
+-- Métadonnées
+note_moyenne DECIMAL(3, 2) DEFAULT 0.00,
+nombre_avis INT DEFAULT 0,
 
-        'timestamp' => now()->toISOString()
-    ]
+-- Statut et dates
+date_publication DATETIME DEFAULT CURRENT_TIMESTAMP,
+date_modification DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+date_expiration DATETIME NULL, -- Pour les services boostés
+
+-- Contraintes
+FOREIGN KEY (id_utilisateur) REFERENCES Utilisateurs (id_utilisateur) ON DELETE CASCADE,
+FOREIGN KEY (id_categorie) REFERENCES Categories_Service (id_categorie),
+
+-- Index pour les performances
+INDEX idx_utilisateur (id_utilisateur),
+INDEX idx_categorie (id_categorie),
+INDEX idx_localisation (localisation),
+INDEX idx_ville (ville),
+INDEX idx_type_service (type_service),
+INDEX idx_disponibilite (disponibilite),
+INDEX idx_est_actif (est_actif),
+INDEX idx_est_verifie (est_verifie),
+INDEX idx_est_booste (est_booste),
+INDEX idx_date_publication (date_publication),
+INDEX idx_prix (prix),
+INDEX idx_note_moyenne (note_moyenne),
+
+-- Contrainte de prix cohérent
+CHECK ((type_service = 'negociable' AND prix IS NULL) OR (type_service != 'negociable' AND prix IS NOT NULL))
 );
-
-// Vérifie le résultat
-echo $result ? '✅ Notification envoyée avec succès!' : '❌ Échec de l\'envoi';

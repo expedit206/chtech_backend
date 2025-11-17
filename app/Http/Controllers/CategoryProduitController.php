@@ -3,23 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\Produit;
-use App\Models\Category;
 use Illuminate\Http\Request;
-use App\Models\ProductFavorite;
+use App\Models\CategoryProduit;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\ProduitController;
 
-class CategoryController extends Controller
+class CategoryProduitController extends Controller
 {
-    public function index()
+ public function index()
     { 
-        $categories = Category::orderBy('nom', 'asc')->get();
-        return response()->json(['categories' => $categories]);
+        $categories = CategoryProduit::orderBy('nom', 'asc')->get();
+        return response()->json(['categoryProduits' => $categories]);
     }
 
-
-
-    public function relatedProduct(Produit $produit, Request $request)
+      public function relatedProduct(Produit $produit, Request $request)
     {
         $categoryId = $request->query('category_id', $produit->category_id); // Utilise la catégorie du produit si non spécifiée
         $user = $request->user();

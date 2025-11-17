@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('jeton_offers', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade'); // Vendeur
+            $table->foreignUuid('user_id')->constrained('users')->onDelete('cascade'); // Vendeur
             $table->foreignId('wallet_id')->nullable()->constrained('wallets')->onDelete('set null');
             $table->integer('nombre_jetons')->unsigned(); // Quantité de jetons proposés
             $table->decimal('prix_unitaire', 10, 2); // Prix par jeton en FCFA

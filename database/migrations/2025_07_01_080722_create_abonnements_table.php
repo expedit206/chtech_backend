@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('abonnements', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->foreignUuid('user_id')->constrained('users')->onDelete('cascade');
             $table->string('type');
             $table->date('debut');
             $table->date('fin')->nullable();

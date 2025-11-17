@@ -16,6 +16,22 @@ class UserSeeder extends Seeder
         User::factory(2)->create();
 
         // Créer un utilisateur admin spécifique
+    //      protected $fillable = [
+    //     'id',
+    //     'nom',
+    //     'telephone',
+    //     'email',
+    //     'ville',
+    //     'mot_de_passe',
+    //     'role',
+    //     'premium',
+    //     'parrain_id',
+    //     'parrainage_code',
+    //     'jetons',
+    //     'photo',
+    //     'subscription_ends_at'
+    // ];
+
         User::firstOrCreate(
             ['email' => 'aaa@aaa.com'],
             [
@@ -27,21 +43,24 @@ class UserSeeder extends Seeder
                 // 'role' => 'admin',
                 'premium' => true,
                 'parrain_id' => null,
+                
+
+
             ]
         );
-        User::firstOrCreate(
-            ['email' => 'receiver@gmail.com'],
-            [
-                // 'id' => \Illuminate\Support\Str::uuid(),
-                'nom' => 'receiver',
-                'telephone' => '+23769000000',
-                'ville' => 'Douala',
-                'mot_de_passe' => \Illuminate\Support\Facades\Hash::make('aaaaaaaa'),
-                // 'role' => 'admin',
-                'premium' => true,
-                'parrain_id' => null,
-            ]
-        );
+        // User::firstOrCreate(
+        //     ['email' => 'receiver@gmail.com'],
+        //     [
+        //         // 'id' => \Illuminate\Support\Str::uuid(),
+        //         'nom' => 'receiver',
+        //         'telephone' => '+23769000000',
+        //         'ville' => 'Douala',
+        //         'mot_de_passe' => \Illuminate\Support\Facades\Hash::make('aaaaaaaa'),
+        //         // 'role' => 'admin',
+        //         'premium' => true,
+        //         'parrain_id' => null,
+        //     ]
+        // );
 
         // Associer quelques utilisateurs à un parrain
         $users = User::all();

@@ -17,155 +17,17 @@ use Intervention\Image\Laravel\Facades\Image;
 
 class CommercantController extends Controller
 {
-    public function produits(Request $request)
-    {
-        $user = $request->user()->load('commercant');
-        // return response()->json($);
-        if (!$user->commercant) {
-            return response()->json(['message' => 'Accès réservé aux commerçants'], 403);
-        } 
-
-        $produits = Produit::where('commercant_id', $user->commercant->id)
-              ->with('category')
-            ->withCount('favorites') // Charger le nombre de favoris
-            ->withCount('views')    // Charger le nombre de vues
-            ->orderBy('created_at', 'desc')    // Charger le nombre de vues
-            ->get();
-        // return response()->json(['produits' => 'produits']);
-        return response()->json(['produits' => $produits]);
-    }
+   
 
     // use Intervention\Image\Facades\Image;
 
     // use Illuminate\Http\Request;
     // use Intervention\Image\Laravel\Facades\Image;
 
-    public function storeProduit(Request $request)
-    {
-        $user = $request->user();
-        if (!$user->commercant) {
-            return response()->json(['message' => 'Utilisateur non autorisé'], 403);
-        }
-
-        $validated = $request->validate([
-            'nom' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'prix' => 'required|numeric|min:0',
-            'photos' => 'required|array',
-            'photos.*' => 'image|max:2048',
-            'category_id' => 'required|exists:categories,id',
-            'collaboratif' => 'required',
-            'marge_min' => 'nullable|numeric|min:0',
-            'stock' => 'required|integer|min:0',
-            'ville' => 'nullable|string',
-        ]);
-
-        $photos = [];
-        if ($request->hasFile('photos')) {
-            foreach ($request->file('photos') as $photo) {
-                $filename = time() . '_' . pathinfo($photo->getClientOriginalName(), PATHINFO_FILENAME) . '.jpg';
-                $destinationPath = public_path('storage/produits');
-
-                if (!file_exists($destinationPath)) {
-                    mkdir($destinationPath, 0755, true);
-                }
-
-                // Compression avec redimensionnement, suppression des métadonnées, puis encodage
-                $image = Image::read($photo)
-                    // ->resize(1200, 600, function ($constraint) {
-                    //     $constraint->aspectRatio();
-                    //     $constraint->upsize();
-                    // })
-                    ->encodeByExtension('jpg', quality: 20);
-                $image->save($destinationPath . '/' . $filename);
-
-                $photos[] = asset('storage/produits/' . $filename);
-            }
-        }
-
-        $produit = Produit::create([
-            'id' => \Illuminate\Support\Str::uuid(),
-            'commercant_id' => $user->commercant->id,
-            'category_id' => $validated['category_id'],
-            'nom' => $validated['nom'],
-            'description' => $validated['description'],
-            'prix' => $validated['prix'],
-            'photos' => $photos,
-            'collaboratif' => $validated['collaboratif'] == '0' ? 0 : 1,
-            'marge_min' => $validated['marge_min'] ?? null,
-            'quantite' => $validated['stock'],
-            'ville' => $validated['ville'] ?? 'aucun',
-        ]);
-
-        return response()->json(['produit' => $produit], 201);
-    }
+   
   
 
-    public function updateProduit(Request $request, $id)
-    {
-        $user = $request->user();
-        $produit = Produit::where('commercant_id', $user->commercant->id)->findOrFail($id);
-
-        $validated = $request->validate([
-            'nom' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'prix' => 'required|numeric|min:0',
-            'photos' => 'array',
-            'photos.*' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
-            'old_photos' => 'nullable|array',
-            'old_photos.*' => 'nullable|string',
-            'category_id' => 'required|exists:categories,id',
-            'collaboratif' => 'boolean',
-            'marge_min' => 'nullable|numeric|min:0',
-            'stock' => 'required|integer|min:0',
-            'ville' => 'nullable|string',
-        ]);
-
-        // Photos gardées par l’utilisateur
-        $oldPhotos = $validated['old_photos'] ?? [];
-
-        // Anciennes photos en BDD
-        $existingPhotos = $produit->photos ?? [];
-
-        // Supprimer celles qui ne sont plus dans old_photos
-        foreach ($existingPhotos as $oldPhoto) {
-            if (!in_array($oldPhoto, $oldPhotos)) {
-                $path = public_path(str_replace(asset(''), '', $oldPhoto));
-                if (file_exists($path)) {
-                    unlink($path);
-                }
-            }
-        }
-
-        // Ajouter les nouvelles
-        $photos = $oldPhotos; // on garde celles restantes
-        
-        if ($request->hasFile('photos')) {
-            foreach ($request->file('photos') as $photo) {
-                $filename = time() . '_' . $photo->getClientOriginalName();
-                $photo->move(public_path('storage/produits'), $filename);
-                
-                $photos[] = asset('storage/produits/' . $filename);
-            }
-        }
-        
-        // return response()->json(['produit' => $request->hasFile('photos')], 200);
-        // Mise à jour
-        $produit->update([
-            'nom' => $validated['nom'],
-            'description' => $validated['description'],
-            'prix' => $validated['prix'],
-            'photos' => $photos,
-            'category_id' => $validated['category_id'],
-            'collaboratif' => $validated['collaboratif'] ?? false,
-            'marge_min' => $validated['marge_min'] ?? null,
-            'quantite' => $validated['stock'],
-            'ville' => $validated['ville'] ?? 'aucun',
-        ]);
-
-        return response()->json(['produit' => $produit], 200);
-    }
-
+  
 
       public function destroyProduit(Request $request, $id)
 {

@@ -13,23 +13,30 @@ return new class extends Migration
     {
         Schema::create('produits', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignUuid('commercant_id')->references('id')->on('commercants')->onDelete('cascade');
-            $table->foreignUuid('original_commercant_id')->nullable()->references('id')->on('commercants')->onDelete('cascade');
+            $table->foreignUuid('user_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreignUuid('original_user_id')->nullable()->references('id')->on('users')->onDelete('cascade');
             $table->string('nom');
             $table->text('description')->nullable();
             $table->decimal('prix', 10, 2);
-            $table->integer('quantite');
-            $table->foreignUuid('category_id')->nullable()->constrained('categories')->onDelete('cascade');
+            $table->integer('quantite')->default(1);
+            $table->foreignUuid('category_produits_id')->nullable()->constrained('category_produits')->onDelete('cascade');
             $table->string('ville')->nullable();
             $table->json('photos')->nullable(); // Remplace photo_url par photos (JSON)
-            $table->boolean('collaboratif')->default(false);
-            $table->decimal('marge_min', 10, 2)->nullable();
+            
+            $table->enum('condition', ['neuf', 'occasion', 'reconditionne'])->default('neuf');
+            $table->boolean('revendable')->default(false);
+            $table->decimal('marge_revente_min', 10, 2)->nullable();
+    // marge_revente_max DECIMAL(5,2) NULL, -- Pourcentage maximum autorisé
+                    // localisation VARCHAR(255) NOT NULL,
+                    // est_actif BOOLEAN DEFAULT TRUE,
+                    $table->json('localisation')->nullable(); // Pour stocker des données de localisation plus détaillées
+                $table->boolean('est_actif')->default(true);
             $table->timestamps();
 
-            $table->index('category_id');
+            // $table->index('category_id');
             $table->index('prix');
             $table->index('ville');
-            $table->index('collaboratif');
+            $table->index('revendable');
             $table->index('created_at');
         });
     }

@@ -17,8 +17,8 @@ return new class extends Migration
                 $table->decimal('gains', 10, 2)->default(0.00);
                 $table->timestamp('date_activation')->nullable();
                 
-                $table->foreignId('parrain_id')->references('id')->on('users')->onDelete('cascade');
-                $table->foreignId('filleul_id')->references('id')->on('users')->onDelete('cascade');
+                $table->foreignUuid('parrain_id')->references('id')->on('users')->onDelete('cascade');
+                $table->foreignUuid('filleul_id')->references('id')->on('users')->onDelete('cascade');
                 $table->unique(['parrain_id', 'filleul_id']);
                 $table->timestamps();
             });

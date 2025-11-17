@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('niveaux_users', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')
+            $table->foreignUuid('user_id')
                 ->constrained('users')
                 ->onDelete('cascade');
                 

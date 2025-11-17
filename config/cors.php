@@ -1,7 +1,7 @@
     <?php
     return [
 
-        'paths' => ['*', 'broadcasting/auth', 'sanctum/csrf-cookie', 'login', 'logout'],
+        'paths' => ['*', 'broadcasting/auth', 'sanctum/csrf-cookie', 'login', 'logout', 'password/generate-token'],
 
         'allowed_methods' => ['*'],
 

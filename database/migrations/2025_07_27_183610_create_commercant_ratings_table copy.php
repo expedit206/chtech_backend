@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('commercant_ratings', function (Blueprint $table) {
             $table->id();
             $table->foreignUuid('commercant_id')->constrained()->onDelete('cascade');
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignUuid('user_id')->constrained()->onDelete('cascade');
             $table->integer('rating')->unsigned()->default(0); // Note entre 0 et 5
             $table->timestamps();
         });

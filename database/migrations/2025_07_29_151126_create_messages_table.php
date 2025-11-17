@@ -12,10 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('messages', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             // $table->foreignUuid('product_id')->references('id')->on('produits')->onDelete('set null');
-            $table->foreignId('sender_id')->references('id')->on('users')->onDelete('cascade');
-            $table->foreignId('receiver_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreignUuid('sender_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreignUuid('receiver_id')->references('id')->on('users')->onDelete('cascade');
             // $table->foreignUuid('product_id')->references('id')->on('produits')->onDelete('cascade')->nullable();
             $table->text('content');
             $table->boolean('is_read')->default(false);

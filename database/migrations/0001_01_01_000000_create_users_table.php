@@ -10,19 +10,25 @@ class CreateUsersTable extends Migration
     public function up()
     {
         Schema::create('users', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->string('nom');
             $table->string('email')->nullable()->unique();
             $table->string('telephone')->unique()-> nullable();
             $table->string('parrainage_code', 50)->nullable()->unique();
             $table->string('ville')->nullable();
+            $table->string('quartier')->nullable();
+            // date naissance
+            $table->date('date_naissance')->nullable(); 
             $table->string('mot_de_passe');
             $table->string('photo')->nullable();
             $table->boolean('premium')->default(false);
             $table->timestamp('subscription_ends_at')->nullable();
+// quartier
+            $table->boolean('est_verifie')->default(false);
+            $table->string('verification_code')->nullable();
 
             // Relation auto-référencée
-            $table->foreignId('parrain_id')
+            $table->foreignUuid('parrain_id')
                 ->nullable()
                 ->constrained('users')
                 ->nullOnDelete();
@@ -37,12 +43,14 @@ class CreateUsersTable extends Migration
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();
             $table->string('token');
+            $table->timestamp('token_expires_at')->nullable();
+
             $table->timestamp('created_at')->nullable();
         });
 
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
-            $table->foreignId('user_id')->nullable()->index();
+            $table->foreignUuid('user_id')->nullable()->index();
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
             $table->longText('payload');

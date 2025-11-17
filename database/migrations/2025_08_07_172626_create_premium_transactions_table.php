@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('premium_transactions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignUuid('user_id')->constrained()->onDelete('cascade');
             $table->enum('type_abonnement', ['mensuel', 'annuel']);
             $table->decimal('montant', 10, 2);
             $table->string('transaction_id_notchpay')->unique();

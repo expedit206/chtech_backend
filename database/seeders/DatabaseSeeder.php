@@ -9,6 +9,7 @@ use Database\Seeders\UserSeeder;
 use Database\Seeders\ProductSeeder;
 use Database\Seeders\CategorySeeder;
 use Database\Seeders\CommercantSeeder;
+use Database\Seeders\CategoryProduitSeeder;
 
 class DatabaseSeeder extends Seeder
 {
@@ -19,10 +20,9 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
         $this->call([
-            CategorySeeder::class,
-            // UserSeeder::class,
+            UserSeeder::class,
             // CommercantSeeder::class,
-            // ProductSeeder::class,
+            CategoryProduitSeeder::class,
         ]);
         // User::factory()->create([
         //     'name' => 'Test User',
