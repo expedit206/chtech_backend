@@ -13,6 +13,7 @@ class CategoryProduitController extends Controller
     { 
         $categories = CategoryProduit::orderBy('nom', 'asc')->get();
         return response()->json(['categoryProduits' => $categories]);
+        // return response()->json(['categoryProduits' => $categories],400);
     }
 
       public function relatedProduct(Produit $produit, Request $request)

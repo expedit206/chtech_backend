@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Parrainage;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
@@ -22,8 +23,10 @@ class AuthController extends Controller
         ]);
 
         $parrainId = null;
+        $parrain = null;
         if ($request->parrain_code) {
             $parrain = User::where('parrainage_code', $request->parrain_code)->first();
+            
             $parrainId = $parrain ? $parrain->id : null;
         }
 
@@ -34,6 +37,20 @@ class AuthController extends Controller
             'premium' => false,
             'parrain_id' => $parrainId,
         ]);
+
+       $codeGenerate = $this->generateCode($user);
+       $user->parrainage_code = $codeGenerate;
+
+       $user->save();
+            if ($parrain) {
+            // Créer le parrainage (sans bonus)
+            Parrainage::create([
+                'parrain_id' => $parrain->id,
+                'filleul_id' => $user->id,
+                'statut' => 'en_attente',
+                'bonus_parrain' => 3,
+            ]);
+        }
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -64,9 +81,28 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Connexion réussie',
-            'user' => $user->load('commercant', 'niveaux_users.parrainageNiveau'),
+            'user' => $user,
             'token' => $token,
         ]);
+    }
+
+
+     public function generateCode(User $user)
+    {
+
+        if (!$user) {
+            return response()->json(['message' => 'Utilisateur non authentifié'], 401);
+        }
+
+        $suggestedCode = Str::random(3) . '' . Str::slug($user->nom);
+        $suggestedCode = strtoupper(substr($suggestedCode, 0, 6));
+
+        while (User::where('parrainage_code', $suggestedCode)->exists()) {
+            $suggestedCode = Str::slug($user->nom) . '-' . Str::random(4);
+            $suggestedCode = strtoupper(substr($suggestedCode, 0, 6));
+        }
+
+        return $suggestedCode;
     }
 
 

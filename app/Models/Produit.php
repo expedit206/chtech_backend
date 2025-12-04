@@ -6,14 +6,11 @@ namespace App\Models;
 use App\Models\User;
 use App\Models\Boost;
 use App\Models\Category;
-use App\Models\Commercant;
 use App\Models\ProductView;
 use App\Models\ProductCount;
-use Illuminate\Http\Request;
-use App\Models\Collaboration;
+use App\Models\Revente;
+use App\Models\CategoryProduit;
 use App\Models\ProductFavorite;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Redis;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
@@ -29,12 +26,16 @@ class Produit extends Model
     protected $fillable = [
         'id',
         'user_id',
-        'category_produits_id',
+        'category_id',
         'nom',
         'ville',
         'description',
         'prix',
         'quantite',
+        'note_moyenne',
+        'nombre_avis',
+        'revendable',
+
         'photos',
         'collaboratif',
         'marge_revente_min',
@@ -47,21 +48,21 @@ class Produit extends Model
 
 
     
-    public function commercant()
+    public function user()
     {
-        return $this->belongsTo(Commercant::class);
+        return $this->belongsTo(User::class);
     }
 
         
-    public function collaborations()
+    public function reventes()
     {
-        return $this->hasMany(Collaboration::class);
+        return $this->hasMany(Revente::class);
     }
 
   
     public function category()
     {
-        return $this->belongsTo(Category::class);
+        return $this->belongsTo(CategoryProduit::class, 'category_id', 'id');
     }
 
 
@@ -96,9 +97,9 @@ class Produit extends Model
     }
 
 
-    public function originalCommercant()
+    public function originaluser()
     {
-        return $this->belongsTo(Commercant::class, 'original_commercant_id');
+        return $this->belongsTo(user::class, 'original_user_id');
     }
     
     public function isFavoritedByUser($user = null)
@@ -121,4 +122,10 @@ class Produit extends Model
             ->first();
         return $boost ? $boost->end_date : null;
     }
+    ///reviews
+     public function reviews()
+    {
+        return $this->hasMany(ProduitReview::class);
+    }
+
 }

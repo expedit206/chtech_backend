@@ -2,10 +2,10 @@
 // app/Http/Controllers/ProduitController.php
 namespace App\Http\Controllers;
 
+use App\Models\user;
 use App\Models\Boost;
 use Ramsey\Uuid\Uuid;
 use App\Models\Produit;
-use App\Models\Commercant;
 use App\Models\ProductView;
 use Illuminate\Http\Request;
 use App\Jobs\RecordProductView;
@@ -13,6 +13,7 @@ use App\Models\ProductFavorite;
 use App\Models\JetonTransaction;
 use App\Models\JetonsTransaction;
 
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Redis;
@@ -33,7 +34,7 @@ class ProduitController extends Controller
     $page = (int)$request->query('page', 1);
 
     $query = Produit::query()
-        ->with(['commercant', 'category', 'counts', 'boosts' => function ($q) {
+        ->with(['user', 'category', 'counts', 'boosts' => function ($q) {
             $q->where('statut', 'actif');
         }])
         ->leftJoin('product_counts', 'product_counts.produit_id', '=', 'produits.id')
@@ -75,7 +76,7 @@ if ($search) {
                         $subQ->where('produits.nom', 'like', "%{$term}%")
                             ->orWhere('produits.description', 'like', "%{$term}%")
                             ->orWhereHas('category', fn($cat) => $cat->where('nom', 'like', "%{$term}%"))
-                            ->orWhereHas('commercant', fn($com) =>
+                            ->orWhereHas('user', fn($com) =>
                                 $com->where('nom', 'like', "%{$term}%")
                                     ->orWhere('description', 'like', "%{$term}%")
                             );
@@ -191,7 +192,7 @@ if ($search) {
 
         // Construction de la requête
         $query = Produit::query()
-            ->with(['commercant', 'category', 'counts', 'boosts' => function ($q) {
+            ->with(['user', 'category', 'counts', 'boosts' => function ($q) {
                 $q->where('statut', 'actif');
             }])
             ->leftJoin('product_counts', 'product_counts.produit_id', '=', 'produits.id')
@@ -282,51 +283,58 @@ if ($search) {
 
 
 
-    public function show($id, Request $request)
+
+    public function show($id): JsonResponse
     {
-        $user = $request->user();
-        $produit = Produit::with(['commercant.user', 'category'])
-            ->with('counts')
+        try {
+            $produit = Produit::with([
+                'user:id,nom,email,telephone,photo,created_at',
+                'category:id,nom',
+                'reviews.user:id,nom,photo'
+            ])
             ->findOrFail($id);
 
-        // Ajouter is_favorited_by
-        $produit->is_favorited_by = $user
-            ? ProductFavorite::where('user_id', $user->id)->where('produit_id', $id)->exists()
-            : false;
+            // Incrémenter le compteur de vues
+            // $produit->increment('views_count');
 
-        // Vérifier si l'utilisateur a déjà vu le produit
-        if ($user) {
-            $viewExists = ProductView::where('produit_id', $id)
-                ->where('user_id', $user->id)
-                ->exists();
+            // Produits similaires (même catégorie)
+            $similarProduits = Produit::with(['user', 'category'])
+                ->where('category_id', $produit->category_id)
+                ->where('id', '!=', $produit->id)
+                ->limit(6)
+                ->get();
 
-            if (!$viewExists) {
-                ProductView::create([
-                    'produit_id' => $id,
-                    'user_id' => $user->id,
-                ]);
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'produit' => $produit,
+                    'similar_produits' => $similarProduits,
+                    'statistics' => [
+                        'average_rating' => $produit->note_moyenne,
+                        'total_reviews' => $produit->nombre_avis
+                    ]
+                ]
+            ]);
 
-                // Redis::incr("produit:views:{$id}");
-            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'error' => $e->getMessage()
+            ], 404);
         }
-        $produit->commercant->rating = $produit->commercant->average_rating; // Utilise l'attribut calculé
-
-
-        $produit->boosted_until = $produit->boosts->first()?->end_date;
-
-        return response()->json(['produit' => $produit->load('counts')]);
     }
 
 
 public function publicShow($id, Request $request)
     {
         // Récupérer le produit sans dépendre de l'utilisateur
-        $produit = Produit::with(['commercant.user', 'category'])
+        $produit = Produit::with(['user', 'category'])
             ->with('counts')
             ->findOrFail($id);
 
         // Ajouter uniquement les propriétés publiques
-        $produit->commercant->rating = $produit->commercant->average_rating; // Attribut calculé
+        $produit->user->rating = $produit->user->average_rating; // Attribut calculé
         $produit['boosted_until'] = $produit->boosts->first()?->end_date;
         $produit->is_favorited_by = false; // Par défaut pour les non-connectés
 
@@ -336,7 +344,7 @@ public function publicShow($id, Request $request)
    public function publicRecordView(Request $request)
     {
         $validated = $request->validate([
-            'product_id' => 'required|uuid|exists:produits,id',
+            'product_id' => 'required|exists:produits,id',
         ]);
 
         $produitId = $validated['product_id'];
@@ -355,7 +363,7 @@ public function publicShow($id, Request $request)
     {
 
         $validated = $request->validate([
-            'product_id' => 'required|uuid|exists:produits,id',
+            'product_id' => 'required|exists:produits,id',
             'user_id' => 'nullable|exists:users,id',
         ]);
 
@@ -457,60 +465,13 @@ public function publicShow($id, Request $request)
         ]);
     }
 
-    public function store(Request $request)
-    {
-        $request->validate([
-            'nom' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'prix' => 'required|numeric|min:0',
-            'quantite' => 'required|integer|min:0',
-            'category_id' => 'nullable|uuid|exists:categories,id',
-            'ville' => 'nullable|string',
-            'photo_url' => 'nullable|string',
-            'collaboratif' => 'string',
-            'marge_min' => 'nullable|numeric|min:0',
-        ]);
-
-
-        // return response()->json(['message' => 'Produit créé', 'produit' => $request->all()], 201);
-
-        $user = $request->user();
-        $commercant = Commercant::where('user_id', $user->id)->first();
-
-        if (!$commercant) {
-            return response()->json(['message' => 'Vous devez être un commerçant pour créer un produit'], 403);
-        }
-
-        $produit = new Produit([
-            'id' => Uuid::uuid4()->toString(),
-            'commercant_id' => $commercant->id,
-            'nom' => $request->nom,
-            'description' => $request->description,
-            'prix' => $request->prix,
-            'quantite' => $request->quantite,
-            'category_id' => $request->category_id,
-            'ville' => $request->ville,
-            'photo_url' => $request->photo_url,
-            'collaboratif' => $request->collaboratif,
-            'marge_min' => $request->marge_min,
-        ]);
-        $produit->save();
-
-        // Charger les relations et ajouter is_favorited_by
-        $produit->load(['commercant', 'category'])->loadCount('favorites');
-        $produit->is_favorited_by = $user
-            ? ProductFavorite::where('user_id', $user->id)->where('produit_id', $produit->id)->exists()
-            : false;
-
-        return response()->json(['message' => 'Produit créé', 'produit' => $produit], 201);
-    }
 
     public function boost(Request $request, $id)
     {
         $produit = Produit::findOrFail($id);
-        $user = $request->user()->load('commercant');
+        $user = $request->user()->load('user');
 
-        if ($produit->commercant_id !== $user->commercant?->id) {
+        if ($produit->user_id !== $user->user?->id) {
             return response()->json(['message' => 'Non autorisé'], 403);
         }
 

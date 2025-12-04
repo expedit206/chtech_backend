@@ -27,7 +27,6 @@ class OfferController extends Controller
         $validated = $request->validate([
             'nombre_jetons' => 'required|integer|min:1',
             'prix_unitaire' => 'required|numeric|min:1',
-            'description' => 'nullable|string',
             'wallet_id' => 'required|exists:wallets,id',
         ]);
 
@@ -52,7 +51,6 @@ $nombre_jetons = $validated['nombre_jetons'];
             'nombre_jetons' => $nombre_jetons,
             'prix_unitaire' => $validated['prix_unitaire'],
             'total_prix' => $totalPrice,
-            'description' => $validated['description'],
             'wallet_id' => $wallet->id,
             'date_creation' => now(),
         ]);

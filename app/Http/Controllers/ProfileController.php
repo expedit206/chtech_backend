@@ -3,9 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Models\Commercant;
 use Illuminate\Http\Request;
-use App\Models\ParrainageNiveau;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -197,7 +195,7 @@ class ProfileController extends Controller
 
     public function publicProfile($id)
     {
-        $user = User::with(['niveaux_users.parrainageNiveau'])->findOrFail($id);
+        $user = User::findOrFail($id);
 
         return response()->json([
             'id' => $user->id,
@@ -209,7 +207,6 @@ class ProfileController extends Controller
             'commercant' => $user->commercant??null,
             'ville' => $user->ville,
             'telephone' => $user->telephone,
-            'niveaux_users' => $user->niveaux_users,
         ]);
     }
 
@@ -223,20 +220,5 @@ $user->update($request->all());
         ], 200);
   
     }
-    // protected function calculateTotalGains($userId)
-    // {
-    //     $totalParrainagesCommercants = User::where('parrain_id', $userId)->whereHas('commercant')->count();
-    //     $niveaux = \App\Models\ParrainageNiveau::orderBy('filleuls_requis')->get();
-    //     $totalGains = 0;
-
-    //     foreach ($niveaux as $niveau) {
-    //         if ($niveau->filleuls_requis <= $totalParrainagesCommercants) {
-    //             $totalGains += $niveau->jetons_bonus;
-    //         } else {
-    //             break;
-    //         }
-    //     }
-
-    //     return $totalGains;
-    // }
+    
 }

@@ -21,7 +21,7 @@ class ChatController extends Controller
     /**
      * Récupérer la liste des conversations de l'utilisateur connecté
      */
-   public function conversations(Request $request)
+    public function conversations(Request $request)
     {
         $user = $request->user();
 
@@ -37,7 +37,7 @@ class ChatController extends Controller
             ->get()
             ->map(function ($message) use ($user) {
                 $otherUserId = $message->user1 == $user->id ? $message->user2 : $message->user1;
-                $otherUser = User::with('commercant')->find($otherUserId);
+                $otherUser = User::find($otherUserId);
 
                 // Récupérer le dernier message de la conversation
                 $lastMessage = Message::where(function ($q) use ($user, $otherUserId) {
@@ -51,16 +51,17 @@ class ChatController extends Controller
                     ->where('sender_id', $otherUserId)
                     ->where('is_read', false)
                     ->count();
-$lastMessageType = $lastMessage->type ?? 'text';
+
+                $lastMessageType = $lastMessage->type ?? 'text';
+
                 return [
                     'user_id' => $otherUserId,
                     'name' => $otherUser ? $otherUser->nom : 'Inconnu',
                     'last_message' => $lastMessage->content ?? '',
-                    'last_message_type' => $lastMessageType ?? $lastMessage->content,
+                    'last_message_type' => $lastMessageType,
                     'updated_at' => $lastMessage->updated_at ?? now(),
                     'unread_count' => $unreadCount,
-                    'is_commercant' => $otherUser->commercant ? true : false,
-                    'profile_photo' => $otherUser->photo, // Assurez-vous que photo_url existe dans User
+                    'profile_photo' => $otherUser->photo,
                 ];
             })
             ->sortByDesc(function ($conversation) {
@@ -69,11 +70,11 @@ $lastMessageType = $lastMessage->type ?? 'text';
             ->values();
 
         // Ajouter la conversation avec le service client (ID 3)
-        $serviceClientId = 3;
+        $serviceClientId = User::where('email', 'aaa@aaa.com')->first()?->id;
         $isServiceClientConversation = $conversations->firstWhere('user_id', $serviceClientId) === null;
 
         if ($isServiceClientConversation) {
-            $serviceClient = User::with('commercant')->find($serviceClientId);
+            $serviceClient = User::find($serviceClientId);
 
             // Récupérer le dernier message avec le service client
             $lastMessageWithService = Message::where(function ($q) use ($user, $serviceClientId) {
@@ -95,8 +96,7 @@ $lastMessageType = $lastMessage->type ?? 'text';
                 'last_message_type' => $lastMessageWithService ? $lastMessageWithService->type : 'text',
                 'updated_at' => $lastMessageWithService->updated_at ?? now(),
                 'unread_count' => $unreadCountWithService,
-                'is_commercant' => $serviceClient->commercant ? true : false,
-                'profile_photo' => $serviceClient->photo ?? null, // Image par défaut si absente
+                'profile_photo' => $serviceClient->photo ?? null,
             ];
 
             $conversations->push($serviceClientConversation);
@@ -122,7 +122,7 @@ $lastMessageType = $lastMessage->type ?? 'text';
         }
 
         $offset = $request->query('offset', 0);
-        $limit = 30; // Limite à 30 messages
+        $limit = 30;
 
         // Récupérer les 30 derniers messages dans l'ordre décroissant, puis les trier en ordre ascendant
         $messages = Message::where(function ($query) use ($user, $receiverId) {
@@ -130,16 +130,16 @@ $lastMessageType = $lastMessage->type ?? 'text';
                 ->orWhere('sender_id', $receiverId)->where('receiver_id', $user->id);
         })
             ->with(['sender', 'receiver', 'product'])
-            ->latest('created_at') // Trier par created_at desc pour obtenir les derniers messages
+            ->latest('created_at')
             ->skip($offset)
-            ->take($limit + 1) // Prendre un message supplémentaire pour vérifier hasMore
+            ->take($limit + 1)
             ->get();
 
-        $hasMore = $messages->count() > $limit; // Vérifier s'il y a plus de messages
-        $messages = $messages->take($limit)->sortBy('created_at'); // Limiter à 30 et trier par created_at asc
+        $hasMore = $messages->count() > $limit;
+        $messages = $messages->take($limit)->sortBy('created_at');
 
         return response()->json([
-            'messages' => $messages->values(), // Réindexer la collection
+            'messages' => $messages->values(),
             'hasMore' => $hasMore,
             'user' => User::find($receiverId),
         ]);
@@ -149,83 +149,83 @@ $lastMessageType = $lastMessage->type ?? 'text';
      * Envoyer un nouveau message
      */
     public function store(Request $request, $receiverId)
-{
-    $user = $request->user();
-    if (!$user) return response()->json(['message' => 'Utilisateur non authentifié'], 401);
+    {
+        $user = $request->user();
+        if (!$user) return response()->json(['message' => 'Utilisateur non authentifié'], 401);
 
-    $receiver = User::find($receiverId);
-    if (!$receiver) return response()->json(['message' => 'Destinataire non trouvé'], 404);
+        $receiver = User::find($receiverId);
+        if (!$receiver) return response()->json(['message' => 'Destinataire non trouvé',
+    'receiverId'=>$receiverId
+    ], 404);
 
-    $validated = $request->validate([
-        'type' => 'nullable|string|in:text,audio,image',
-        'content' => 'nullable|string|max:1000',
-        'audio' => 'nullable|file|mimes:mp3,wav,ogg,webm|max:10240',
-        'image' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:5120',
-        'product_id' => 'nullable|exists:produits,id',
-    ]);
+        $validated = $request->validate([
+            'type' => 'nullable|string|in:text,audio,image',
+            'content' => 'nullable|string|max:1000',
+            'audio' => 'nullable|file|mimes:mp3,wav,ogg,webm|max:10240',
+            'image' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:5120',
+            'product_id' => 'nullable|exists:produits,id',
+        ]);
 
-    $message = new Message();
-    $message->sender_id = $user->id;
-    $message->receiver_id = $receiverId;
-    $message->product_id = $validated['product_id'] ?? null;
-    $message->type = $validated['type'] ?? 'text';
+        $message = new Message();
+        $message->sender_id = $user->id;
+        $message->receiver_id = $receiverId;
+        $message->product_id = $validated['product_id'] ?? null;
+        $message->type = $validated['type'] ?? 'text';
 
-    // 🔹 Gestion des types
-    if ($request->hasFile('audio')) {
-        $file = $request->file('audio');
-        $filename = time() . '_' . $file->getClientOriginalName();
-        $path = public_path('storage/messages/audio/' . $filename);
-        $file->move(public_path('storage/messages/audio'), $filename);
-        $message->content = asset('storage/messages/audio/' . $filename); // URL directe
-        $message->type = 'audio';
-    } elseif ($request->hasFile('image')) {
-        $file = $request->file('image');
-        $filename = time() . '_' . $file->getClientOriginalName();
-        $path = public_path('storage/messages/images/' . $filename);
-        $file->move(public_path('storage/messages/images'), $filename);
-        $message->content = asset('storage/messages/images/' . $filename); // URL directe
-        $message->type = 'image';
-    } else {
-        $message->content = $validated['content'] ?? '';
-    }
-
-    $message->save();
-    $message->load('sender', 'receiver', 'product');
-
-    $unreadMessages = Message::where('receiver_id', $receiverId)
-        ->where('is_read', false)
-        ->count();
-
-    try {
-        broadcast(new MessageSent($message, $user, $receiver, $unreadMessages))->toOthers();
-        $token = $message->receiver->deviceTokens?->where('is_active', true)->pluck('device_token')?->first() ?? null;
-        if($token){
-          
-            $notificationService = app()->make(NotificationService::class);
-                    
-            $template = NotificationTemplateService::newMessage($message);
-            $notificationService->sendToDevice(
-                $token,
-             $template['notification'], $template['data']);
-        }else{
-            
-            Log::info('Aucun device token actif pour l\'utilisateur '.$receiver->id);
+        // Gestion des types
+        if ($request->hasFile('audio')) {
+            $file = $request->file('audio');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $path = public_path('storage/messages/audio/' . $filename);
+            $file->move(public_path('storage/messages/audio'), $filename);
+            $message->content = asset('storage/messages/audio/' . $filename);
+            $message->type = 'audio';
+        } elseif ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $path = public_path('storage/messages/images/' . $filename);
+            $file->move(public_path('storage/messages/images'), $filename);
+            $message->content = asset('storage/messages/images/' . $filename);
+            $message->type = 'image';
+        } else {
+            $message->content = $validated['content'] ?? '';
         }
 
-        Log::info('MessageSent diffusé', ['message_id' => $message->id]);
-    } catch (\Exception $e) {
-        Log::error('Diffusion échouée : ' . $e->getMessage());
-    }
+        $message->save();
+        $message->load('sender', 'receiver', 'product');
 
-    return response()->json([
-        'message' => 'Message envoyé avec succès',
-        'data' => $message,
-    ], 201);
-}
+        $unreadMessages = Message::where('receiver_id', $receiverId)
+            ->where('is_read', false)
+            ->count();
+
+        try {
+            broadcast(new MessageSent($message, $user, $receiver, $unreadMessages))->toOthers();
+            $token = $message->receiver->deviceTokens?->where('is_active', true)->pluck('device_token')?->first() ?? null;
+            if($token){
+                $notificationService = app()->make(NotificationService::class);
+                $template = NotificationTemplateService::newMessage($message);
+                $notificationService->sendToDevice(
+                    $token,
+                    $template['notification'], 
+                    $template['data']
+                );
+            } else {
+                Log::info('Aucun device token actif pour l\'utilisateur '.$receiver->id);
+            }
+
+            Log::info('MessageSent diffusé', ['message_id' => $message->id]);
+        } catch (\Exception $e) {
+            Log::error('Diffusion échouée : ' . $e->getMessage());
+        }
+
+        return response()->json([
+            'message' => 'Message envoyé avec succès',
+            'data' => $message,
+        ], 201);
+    }
     
     public function markAllAsRead(Request $request)
     {
-       
         $user = $request->user();
         Message::where('receiver_id', $user->id)
             ->where('is_read', false)
@@ -234,9 +234,6 @@ $lastMessageType = $lastMessage->type ?? 'text';
         $unreadMessagesCount = Message::where('receiver_id', $user->id)->where('is_read', false)->count();
         return response()->json(['message' => 'Tous les messages marqués comme lus', 'unread_messages' => $unreadMessagesCount]);
     }
-
-
-
 
     /**
      * Éditer un message existant
@@ -249,7 +246,7 @@ $lastMessageType = $lastMessage->type ?? 'text';
         }
 
         $message = Message::find($messageId);
-        if (!$message || $message->sender_id !== $user->id ) {
+        if (!$message || $message->sender_id !== $user->id) {
             return response()->json(['message' => 'Message non trouvé ou non autorisé'.$messageId], 403);
         }
 
@@ -261,13 +258,14 @@ $lastMessageType = $lastMessage->type ?? 'text';
         $message->updated_at = now();
         $message->save();
 
-        // Charger les relations pour la réponse
         $message->load('sender', 'receiver', 'product');
- try {
+        
+        try {
             broadcast(new MessageUpdated($message, $user, User::find($message->receiver_id)))->toOthers();
         } catch (\Exception $e) {
             Log::error('Diffusion MessageUpdated échouée : ' . $e->getMessage());
         }
+        
         return response()->json([
             'message' => 'Message mis à jour avec succès',
             'data' => $message,
@@ -297,16 +295,15 @@ $lastMessageType = $lastMessage->type ?? 'text';
             }
         }
 
-
         $receiverId = $message->receiver_id;
         $message->delete();
 
-         try {       
-             broadcast(new MessageDeleted($messageId, $user->id, $receiverId));
+        try {       
+            broadcast(new MessageDeleted($messageId, $user->id, $receiverId));
         } catch (\Exception $e) {
             Log::error('Diffusion MessageDeleted échouée : ' . $e->getMessage());
         }
+        
         return response()->json(['message' => 'Message supprimé avec succès']);
     }
-
 }

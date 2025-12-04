@@ -19,9 +19,14 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->decimal('prix', 10, 2);
             $table->integer('quantite')->default(1);
-            $table->foreignUuid('category_produits_id')->nullable()->constrained('category_produits')->onDelete('cascade');
+            $table->foreignUuid('category_id')->nullable()->constrained('category_produits')->onDelete('cascade');
             $table->string('ville')->nullable();
             $table->json('photos')->nullable(); // Remplace photo_url par photos (JSON)
+             
+                // Métadonnées
+                $table->decimal('note_moyenne', 3, 2)->default(0.00);
+                $table->integer('nombre_avis')->default(0);
+                
             
             $table->enum('condition', ['neuf', 'occasion', 'reconditionne'])->default('neuf');
             $table->boolean('revendable')->default(false);
@@ -34,6 +39,9 @@ return new class extends Migration
             $table->timestamps();
 
             // $table->index('category_id');
+            
+                $table->index('user_id');
+                $table->index('category_id');
             $table->index('prix');
             $table->index('ville');
             $table->index('revendable');

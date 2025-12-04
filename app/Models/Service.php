@@ -3,24 +3,39 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\User;
+use App\Models\ServiceReview;
+use App\Models\CategoryService;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Service extends Model
 {
     use HasFactory;
 
-    protected $table = 'services';
-    protected $primaryKey = 'id';
     public $timestamps = true;
 
+     protected $keyType = 'string';
+    public $incrementing = false;
+
+    protected static function booted()
+    {
+        static::creating(function ($model) {
+            if (empty($model->{$model->getKeyName()})) {
+                $model->{$model->getKeyName()} = (string) \Str::uuid();
+            }
+        });
+    }
+
     protected $fillable = [
-        'id_user',
-        'id_categorie',
+        'user_id',
+        'category_id',
         'titre',
         'description',
         'annees_experience',
         'competences',
+        'note_moyenne',
+        'nombre_avis',
         'localisation',
         'ville',
         'disponibilite',
@@ -38,12 +53,16 @@ class Service extends Model
     // Relations
     public function user()
     {
-        return $this->belongsTo(User::class, 'id_user');
+        return $this->belongsTo(User::class, 'user_id');
+    }
+    public function reviews()
+    {
+        return $this->hasMany(ServiceReview::class);
     }
 
-    public function categorie()
+    public function category()
     {
-        return $this->belongsTo(CategoryService::class, 'id_categorie');
+        return $this->belongsTo(CategoryService::class,'category_id');
     }
 
     // Scopes
@@ -57,4 +76,13 @@ class Service extends Model
     {
         return $this->competences ? implode(', ', $this->competences) : '';
     }
+
+    public function calculateAverageRating(): void
+{
+    $average = $this->reviews->avg('rating');
+    $this->update([
+        'note_moyenne' => round($average, 1),
+        'nombre_avis' => $this->reviews->count()
+    ]);
+}
 }

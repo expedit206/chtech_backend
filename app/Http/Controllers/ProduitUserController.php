@@ -40,7 +40,7 @@ class ProduitUserController extends Controller
             'prix' => 'required|numeric|min:0',
             'photos' => 'required|array',
             'photos.*' => 'image|max:2048',
-            'categoryProduit_id' => 'required|exists:category_produits,id',
+            'category_id' => 'required|exists:category_produits,id',
             'revendable' => 'required',
             'condition' => 'string|required',
             'marge_min' => 'nullable|numeric|min:0',
@@ -74,7 +74,7 @@ class ProduitUserController extends Controller
         $produit = Produit::create([
             'id' => \Illuminate\Support\Str::uuid(),
             'user_id' => $user->id,
-            'category_produits_id' => $validated['categoryProduit_id'],
+            'category_id' => $validated['category_id'],
             'nom' => $validated['nom'],
             'description' => $validated['description'],
             'prix' => $validated['prix'],
@@ -126,13 +126,16 @@ public function destroyProduit(Request $request, $id)
             'photos.*' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             'old_photos' => 'nullable|array',
             'old_photos.*' => 'nullable|string',
-            'categoryProduit_id' => 'required|exists:category_produits,id',
+            'category_id' => 'required|exists:category_produits,id',
             'condition' => 'string|required',
             'revendable' => 'boolean',
             'marge_min' => 'nullable|numeric|min:0',
             'stock' => 'required|integer|min:0',
             'ville' => 'nullable|string',
         ]);
+
+        // return response()->json(['produit' => $validated], 200);
+
 
         // Photos gardées par l’utilisateur
         $oldPhotos = $validated['old_photos'] ?? [];
@@ -170,7 +173,7 @@ public function destroyProduit(Request $request, $id)
             'prix' => $validated['prix'],
             'photos' => $photos,
             'condition'=>$validated['condition'],
-            'category_produits_id' => $validated['categoryProduit_id'],
+            'category_id' => $validated['category_id'],
             'revendable' => $validated['revendable'] ?? false,
             'marge_revente_min' => $validated['marge_min'] ?? null,
             'quantite' => $validated['stock'],

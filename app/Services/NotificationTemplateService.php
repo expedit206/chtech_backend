@@ -45,54 +45,54 @@ class NotificationTemplateService
         ];
     }
 
-    //collaborations
-// Template pour demande de collaboration
-    public static function collaborationRequested($collaboration)
+    //reventes
+// Template pour demande de revente
+    public static function reventeRequested($revente)
     {
-        $productName = $collaboration->produit->nom ?? $collaboration->produit->title ?? 'produit';
-        $commercantName = $collaboration->commercant->nom
-            ?? ($collaboration->commercant->user->nom ?? 'Commerçant');
-        $price = isset($collaboration->prix_revente) ? number_format($collaboration->prix_revente, 0, ',', ' ') . ' FCFA' : '';
+        $productName = $revente->produit->nom ?? $revente->produit->title ?? 'produit';
+        $commercantName = $revente->commercant->nom
+            ?? ($revente->commercant->user->nom ?? 'Commerçant');
+        $price = isset($revente->prix_revente) ? number_format($revente->prix_revente, 0, ',', ' ') . ' FCFA' : '';
 
-        $content = "Nouvelle demande de collaboration : {$commercantName} propose de revendre « {$productName} » {$price}";
+        $content = "Nouvelle demande de revente : {$commercantName} propose de revendre « {$productName} » {$price}";
         // Ajouter les points de suspension seulement si la longueur dépasse 100 caractères
         $body = mb_strlen($content) > 100 ? mb_substr($content, 0, 100) . '...' : $content;
 
         return [
             'notification' => [
-                'title' => 'Demande de collaboration',
+                'title' => 'Demande de revente',
                 'body'  => $body,
             ],
             'data' => [
-                'type' => 'collaboration_requested',
-                // 'collaboration_id' => $collaboration->id,
-                // 'produit_id' => $collaboration->produit_id ?? null,
-                // 'commercant_id' => $collaboration->commercant_id ?? null,
-                'statut' => $collaboration->statut ?? 'en_attente',
-                'url' => url("/collaborations/{$collaboration->id}"),
+                'type' => 'revente_requested',
+                // 'revente_id' => $revente->id,
+                // 'produit_id' => $revente->produit_id ?? null,
+                // 'commercant_id' => $revente->commercant_id ?? null,
+                'statut' => $revente->statut ?? 'en_attente',
+                'url' => url("/reventes/{$revente->id}"),
             ],
         ];
     }
 
-    // Template pour changement de statut de collaboration (acceptée / refusée)
-    public static function collaborationStatusChanged($collaboration)
+    // Template pour changement de statut de revente (acceptée / refusée)
+    public static function reventeStatusChanged($revente)
     {
-        $statusLabel = $collaboration->statut === 'valider' ? 'acceptée' : 'refusée';
-        $productName = $collaboration->produit->nom ?? 'produit';
-        $content = "Votre demande de collaboration pour « {$productName} » a été {$statusLabel}.";
+        $statusLabel = $revente->statut === 'valider' ? 'acceptée' : 'refusée';
+        $productName = $revente->produit->nom ?? 'produit';
+        $content = "Votre demande de revente pour « {$productName} » a été {$statusLabel}.";
         $body = mb_strlen($content) > 100 ? mb_substr($content, 0, 100) . '...' : $content;
 
         return [
             'notification' => [
-                'title' => 'Mise à jour collaboration',
+                'title' => 'Mise à jour revente',
                 'body'  => $body,
             ],
             'data' => [
-                'type' => 'collaboration_status_changed',
-                'collaboration_id' => $collaboration->id,
-                'produit_id' => $collaboration->produit_id ?? null,
-                'statut' => $collaboration->statut ?? null,
-                'url' => url("/collaborations/{$collaboration->id}"),
+                'type' => 'revente_status_changed',
+                'revente_id' => $revente->id,
+                'produit_id' => $revente->produit_id ?? null,
+                'statut' => $revente->statut ?? null,
+                'url' => url("/reventes/{$revente->id}"),
             ],
         ];
     }

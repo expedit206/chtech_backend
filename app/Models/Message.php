@@ -8,9 +8,27 @@ use Illuminate\Database\Eloquent\Model;
 
 class Message extends Model
 {
+
+
     protected $fillable = ['sender_id','type', 'receiver_id', 'product_id', 'content'];
     // table
     protected $table = 'messages';
+    
+
+
+    
+       protected $keyType = 'string';
+    public $incrementing = false;
+
+    protected static function booted()
+    {
+        static::creating(function ($model) {
+            if (empty($model->{$model->getKeyName()})) {
+                $model->{$model->getKeyName()} = (string) \Str::uuid();
+            }
+        });
+    }
+
     
     public function sender()
     {

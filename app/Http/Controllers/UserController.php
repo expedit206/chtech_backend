@@ -6,7 +6,7 @@ use App\Models\User;
 use App\Models\Message;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
-use App\Models\Collaboration;
+use App\Models\Revente;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Socialite\Facades\Socialite;
@@ -39,12 +39,12 @@ class UserController extends Controller
             
         if (!$commercant) {
             return response()->json([
-                'collaborations_pending' => 0,
+                'reventes_pending' => 0,
                 'unread_messages' => $unreadMessagesCount,
             ]);
         }
         
-        $collaborationsPendingCount = Collaboration::where(function ($query) use ($commercant) {
+        $reventesPendingCount = Revente::where(function ($query) use ($commercant) {
             $query->where('commercant_id', $commercant->id)
                 ->orWhereHas('produit.commercant', function ($query) use ($commercant) {
                     $query->where('id', $commercant->id);
@@ -53,7 +53,7 @@ class UserController extends Controller
             ->count();
        
         return response()->json([
-            'collaborations_pending' => $collaborationsPendingCount,
+            'reventes_pending' => $reventesPendingCount,
             'unread_messages' => $unreadMessagesCount,
         ]);
     }
@@ -69,7 +69,6 @@ class UserController extends Controller
         $user['favoris_count'] = $user->favoris_count();
         $user['conversations_count'] = $user->conversations_count();
         $user['products_count'] = $user->commercant?->produits?->count() ?? 0;
-        $user->load('commercant', 'niveaux_users.parrainageNiveau');
         
         return response()->json(['user' => $user], 200);
     }

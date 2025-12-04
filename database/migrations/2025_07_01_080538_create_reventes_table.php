@@ -11,16 +11,21 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('collaborations', function (Blueprint $table) {
+        Schema::create('reventes', function (Blueprint $table) {
             $table->id();
-            $table->uuid('produit_id');
-            $table->foreign('produit_id')->references('id')->on('produits')->onDelete('cascade');
-            $table->foreignUuid('commercant_id')->references('id')->on('commercants')->onDelete('cascade');
+            $table->foreignUuid('produit_id')->references('id')->on('produits')->onDelete('cascade');
+            $table->foreignUuid('revendeur_id')->references('id')->on('users')->onDelete('cascade');
             $table->decimal('prix_revente', 10, 2);
             $table->enum('statut', ['en_attente', 'valider', 'refuser'])->default('en_attente');
             $table->decimal('gains_totaux', 10, 2)->default(0);
+            // unique produit_id revendeur
+            
             $table->timestamps();
+
         });
+
+
+
     }
 
     /**
@@ -28,6 +33,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('collaborations');
+        Schema::dropIfExists('reventes');
     }
 };

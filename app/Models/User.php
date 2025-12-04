@@ -2,15 +2,21 @@
 // app/Models/User.php
 namespace App\Models;
 
+use App\Models\Boost;
+use App\Models\Message;
 use App\Models\Abonnement;
 use App\Models\Commercant;
 use App\Models\NiveauUser;
 use App\Models\Parrainage;
-use App\Models\Collaboration;
+use Illuminate\Support\Str;
+use App\Models\Revente;
 use App\Models\ProductFavorite;
+use App\Models\JetonTransaction;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use App\Models\DeviceToken;
 
 class User extends Authenticatable
 {
@@ -63,11 +69,11 @@ class User extends Authenticatable
     public function commercant()
     {
         return $this->hasOne(Commercant::class);
-    }
+    }    
 
-    public function collaborations()
+    public function reventes()
     {
-        return $this->hasMany(Collaboration::class);
+        return $this->hasMany(Revente::class);
     }
 
     public function filleuls()
@@ -111,6 +117,14 @@ class User extends Authenticatable
         return $this->hasMany(Message::class, 'sender_id')->distinct('receiver_id')->count('receiver_id');
     }
 
+      //device token
+    public function deviceTokens()
+    {
+        return $this->hasMany(DeviceToken::class);
+    }
+ 
+
+
     public function favoris_count()
     {
         return $this->hasMany(ProductFavorite::class)->count();
@@ -121,13 +135,80 @@ class User extends Authenticatable
     {
         return $this->hasMany(ProductFavorite::class);
     }
+    
+    
+    ///serviceFavorites
 
-
-
-    //device token
-    public function deviceTokens()
-    {
-        return $this->hasMany(DeviceToken::class);
+    public function serviceFavorites(){
+        
+        return $this->hasMany(ServiceFavorite::class);
     }
- 
+
+    public function hasFavoritedService($serviceId): bool
+{
+    return $this->serviceFavorites()
+                ->where('service_id', $serviceId)
+                ->exists();
+}
+
+
+
+
+  
+    
+public function removeFavoriteService($serviceId): bool
+{
+    return $this->serviceFavorites()
+                ->where('service_id', $serviceId)
+                ->delete() > 0;
+}
+
+
+
+public function addFavoriteService($serviceId): ServiceFavorite
+{
+    return ServiceFavorite::create([
+        'user_id' => $this->id,
+        'service_id' => $serviceId,
+        'favorite_type' => 'service'
+    ]);
+}
+    
+    
+    ///produitFavorites
+
+    public function produitFavorites(){
+        
+        return $this->hasMany(ProductFavorite::class);
+    }
+
+    public function hasFavoritedProduit($produitId): bool
+{
+    return $this->produitFavorites()
+                ->where('produit_id', $produitId)
+                ->exists();
+}
+
+
+
+
+  
+    
+public function removeFavoriteProduit($produitId): bool
+{
+    return $this->produitFavorites()
+                ->where('produit_id', $produitId)
+                ->delete() > 0;
+}
+
+
+
+public function addFavoriteProduit($produitId): ProductFavorite
+{
+    return ProductFavorite::create([
+        'user_id' => $this->id,
+        'produit_id' => $produitId,
+        'favorite_type' => 'produit'
+    ]);
+}
 }

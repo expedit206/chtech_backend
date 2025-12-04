@@ -11,21 +11,26 @@ use App\Http\Controllers\JetonController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\StatsController;
 use Illuminate\Support\Facades\Broadcast;
+use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\WalletController;
 use App\Http\Controllers\ProduitController;
+
 use App\Http\Controllers\ProfileController;
-
 use App\Http\Controllers\ServiceController;
-use App\Http\Controllers\FirebaseController;
 
+use App\Http\Controllers\FavoriteController;
+use App\Http\Controllers\FirebaseController;
 use App\Http\Controllers\AbonnementController;
 use App\Http\Controllers\ParrainageController;
+use App\Http\Controllers\MarketplaceController;
 use App\Http\Controllers\ProduitUserController;
 use App\Http\Controllers\ServiceUserController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SubscriptionController;
-use App\Http\Controllers\CollaborationController;
+use App\Http\Controllers\ReventeController;
 use App\Http\Controllers\PasswordResetController;
+use App\Http\Controllers\ProduitReviewController;
+use App\Http\Controllers\ServiceReviewController;
 use App\Http\Controllers\CategoryProduitController;
 use App\Http\Controllers\CategoryServiceController;
 
@@ -73,14 +78,12 @@ Route::get('/produits/categories', [CategoryProduitController::class, 'index']);
     // Route::post('produits', [ProduitController::class, 'store'])->middleware('premium:product');
 
 
-        Route::post('collaborations', [CollaborationController::class, 'store']);
-        Route::post('collaborations/{id}', [CollaborationController::class, 'update']);
-    Route::get('/collaborations', [CollaborationController::class, 'index'])->name('collaborations.index');
+        Route::post('reventes/{id}', [ReventeController::class, 'store']);
+        Route::put('reventes/{id}/updateStatus', [ReventeController::class, 'update']);
+        Route::get('reventes/{id}/status', [ReventeController::class, 'status']);
+    Route::get('/reventes', [ReventeController::class, 'index'])->name('reventes.index');
         
-        // Route::post('abonnements', [AbonnementController::class, 'store']);
-        Route::post('parrainages', [ParrainageController::class, 'store']);
         
-        // Route::post('/commercants', [ProduitUserController::class, 'create'])->name('commercant.store');
 
     Route::get('/user/mesProduits', [ProduitUserController::class, 'produits']);
     Route::post('/user/produits', [ProduitUserController::class, 'storeProduit']);
@@ -98,20 +101,21 @@ Route::get('/produits/categories', [CategoryProduitController::class, 'index']);
 
     
     Route::get('/user/badges', [UserController::class, 'badges'])->name('user.badges');
-    // Route::get('/user/parrainage', [ProduitUserController::class, 'getParrainage']);
 
 
-    Route::post('/produits/{id}/favorite', [ProduitController::class, 'favorite']);
+    Route::post('/produits/{id}/favorite', [FavoriteController::class, 'toggleProduitFavorite'])->name('toggleProduitFavorite');
     Route::get('/produits/{produit}', [ProduitController::class, 'show'])->name('produits.show');
 
 
     Route::post('/parrainages/generateCode', [ParrainageController::class, 'generateCode']);
     Route::post('/parrainages/createCode', [ParrainageController::class, 'createCode']);
     // ... autres routes
-        Route::post('/parrainages/register', [ParrainageController::class, 'registerParrainage']);
-    Route::post('/parrainages/validate/{userId}', [ParrainageController::class, 'validateParrainage']);
-    Route::get('/parrainages/dashboard', [ParrainageController::class, 'dashboard']);
-    Route::get('/parrainages/niveaux', [ParrainageController::class, 'getAllNiveaux']);
+     
+    Route::post('/parrainage/demander-verification', [ParrainageController::class, 'demanderVerificationEmail']);
+    Route::post('/parrainage/verifier-email', [ParrainageController::class, 'verifierEmail']);
+    
+    // Pour les parrains
+    Route::get('/parrainage/mes-parrainages', [ParrainageController::class, 'mesParrainages']);
 
     Route::post('/produits/{id}/boost', [ProduitController::class, 'boost']);
 
@@ -180,8 +184,33 @@ Route::get('/jeton/transactions/history', [JetonController::class, 'userTransact
     Route::delete('/services/{id}', [ServiceUserController::class, 'destroy']);
     Route::patch('/services/{id}/toggle-disponibilite', [ServiceUserController::class, 'toggleDisponibilite']);
     
-    
+
+        
+Route::prefix('services')->group(function () {
+    Route::post('/{id}/favorite', [FavoriteController::class, 'toggleServiceFavorite']);
+
+        // Routes pour les avis
+    Route::post('/{id}/reviews', [ServiceReviewController::class, 'storeServiceReview']);
+    Route::put('/reviews/{reviewId}', [ServiceReviewController::class, 'update']);
+    Route::delete('/reviews/{reviewId}', [ServiceReviewController::class, 'destroy']);
+    Route::post('/reviews/{reviewId}/respond', [ServiceReviewController::class, 'respond']);
 });
+
+    Route::post('produits/{id}/reviews', [ProduitReviewController::class, 'storeProduitReview']);
+
+    
+    Route::prefix('marketplace')->group(function () {
+        Route::get('/produits', [MarketplaceController::class, 'getProduits']);
+        Route::get('/services', [MarketplaceController::class, 'getServices']);
+        Route::get('/search', [MarketplaceController::class, 'globalSearch']);
+    });
+});
+
+// routes/api.php
+
+
+
+
 Route::get('/services/categories', [CategoryServiceController::class, 'index']);
 
 
@@ -218,3 +247,19 @@ Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallbac
     Route::get('/jeton_market/offers', [JetonController::class, 'index']);
 
     Route::post('/auth/google/native', [ProduitUserController::class, 'handleGoogleNative']);
+
+    
+Route::prefix('services')->group(function () {
+    Route::get('/{id}', [ServiceController::class, 'show']);
+    
+    Route::get('/{id}/getReviews', [ServiceReviewController::class, 'index']);
+});
+
+// routes/api.php
+
+Route::prefix('produits')->group(function () {
+    // ... routes existantes ...
+    
+    // Routes pour les avis
+    Route::get('/{id}/getReviews', [ProduitReviewController::class, 'index']);
+});

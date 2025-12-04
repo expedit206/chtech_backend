@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Category;
 use Illuminate\Support\Str;
 use App\Models\CategoryProduit;
+use App\Models\CategoryService;
 use Illuminate\Database\Seeder;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 
@@ -44,6 +45,12 @@ class CategoryProduitSeeder extends Seeder
 
         foreach ($categories as $nom) {
             CategoryProduit::create([
+                'id' => Str::uuid(),
+                'nom' => $nom,
+            ]);
+        }
+        foreach ($categories as $nom) {
+            CategoryService::create([
                 'id' => Str::uuid(),
                 'nom' => $nom,
             ]);

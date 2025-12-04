@@ -14,8 +14,8 @@ class ServiceUserController extends Controller
     public function mesServices()
     {
         try {
-            $services = Service::with(['categorie', 'user'])
-                ->where('id_user', auth()->id())
+            $services = Service::with(['category', 'user'])
+                ->where('user_id', auth()->id())
                 ->orderBy('created_at', 'desc')
                 ->get();
 
@@ -28,7 +28,7 @@ class ServiceUserController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération de vos services',
+                'message' => $e->getMessage(),
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -41,7 +41,7 @@ class ServiceUserController extends Controller
             $validator = Validator::make($request->all(), [
                 'titre' => 'required|string|max:255',
                 'description' => 'required|string',
-                'id_categorie' => 'required|exists:category_services,id',
+                'category_id' => 'required|exists:category_services,id',
                 'annees_experience' => 'nullable|integer|min:0',
                 'competences' => 'nullable|array',
                 'competences.*' => 'string',
@@ -80,8 +80,8 @@ class ServiceUserController extends Controller
             }
 
             $service = Service::create([
-                'id_user' => auth()->id(),
-                'id_categorie' => $request->id_categorie,
+                'user_id' => auth()->id(),
+                'category_id' => $request->category_id,
                 'titre' => $request->titre,
                 'description' => $request->description,
                 'annees_experience' => $request->annees_experience,
@@ -94,7 +94,7 @@ class ServiceUserController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $service->load(['categorie', 'user']),
+                'data' => $service->load(['category', 'user']),
                 'message' => 'Service créé avec succès'
             ], 201);
 
@@ -113,13 +113,13 @@ class ServiceUserController extends Controller
 
           
         try {
-            $service = Service::where('id_user', auth()->id())
+            $service = Service::where('user_id', auth()->id())
                 ->findOrFail($id);
 
             $validator = Validator::make($request->all(), [
                 'titre' => 'sometimes|required|string|max:255',
                 'description' => 'sometimes|required|string',
-                'id_categorie' => 'sometimes|required|exists:category_services,id',
+                'category_id' => 'sometimes|required|exists:category_services,id',
                 'annees_experience' => 'nullable|integer|min:0',
                 'competences' => 'nullable|array',
                 'competences.*' => 'string',
@@ -134,11 +134,18 @@ class ServiceUserController extends Controller
 
             
             if ($validator->fails()) {
+
+        //         return response()->json([
+        //      'success' => false,
+        //      'message' => 'Erreur lors de la mise à jour du service',
+        //      'error' => $e->getMessage()
+        //  ], 500);
                 return response()->json([
                     'success' => false,
                     'message' => 'Données invalides',
                     'errors' => $validator->errors()
                 ], 422);
+
             }
 
             // Gestion des images
@@ -181,7 +188,7 @@ class ServiceUserController extends Controller
             $service->update([
                 'titre' => $request->titre ?? $service->titre,
                 'description' => $request->description ?? $service->description,
-                'id_categorie' => $request->id_categorie ?? $service->id_categorie,
+                'category_id' => $request->category_id ?? $service->category_id,
                 'annees_experience' => $request->annees_experience ?? $service->annees_experience,
                 'competences' => $request->competences ?? $service->competences,
                 'localisation' => $request->localisation ?? $service->localisation,
@@ -192,14 +199,14 @@ class ServiceUserController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $service->load(['categorie', 'user']),
+                'data' => $service->load(['category', 'user']),
                 'message' => 'Service mis à jour avec succès'
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la mise à jour du service',
+                'message' => $e->getMessage(),
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -209,7 +216,7 @@ class ServiceUserController extends Controller
     public function destroy($id)
     {
         try {
-            $service = Service::where('id_user', auth()->id())
+            $service = Service::where('user_id', auth()->id())
                 ->findOrFail($id);
 
             // Supprimer les images associées
@@ -242,7 +249,7 @@ class ServiceUserController extends Controller
     public function search(Request $request)
     {
         try {
-            $query = Service::with(['categorie', 'user'])
+            $query = Service::with(['category', 'user'])
                 ->where('disponibilite', 'disponible');
 
             if ($request->has('q')) {
@@ -275,7 +282,7 @@ class ServiceUserController extends Controller
     public function toggleDisponibilite($id)
     {
         try {
-            $service = Service::where('id_user', auth()->id())
+            $service = Service::where('user_id', auth()->id())
                 ->findOrFail($id);
 
             $nouvelleDisponibilite = $service->disponibilite === 'disponible' ? 'indisponible' : 'disponible';

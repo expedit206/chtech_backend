@@ -24,10 +24,10 @@ class CheckPremiumLimits
                 }
                 break;
 
-            case 'collaboration':
-                $collaborationCount = $user->collaborations()->count(); // À adapter selon votre modèle
-                if (!$user->premium && $collaborationCount >= 30) {
-                    return response()->json(['message' => 'Limite de 50 collaborations atteinte. Passez à Premium pour plus.'], 403);
+            case 'revente':
+                $reventeCount = $user->reventes()->count(); // À adapter selon votre modèle
+                if (!$user->premium && $reventeCount >= 30) {
+                    return response()->json(['message' => 'Limite de 50 reventes atteinte. Passez à Premium pour plus.'], 403);
                 }
                 break;
 

@@ -1,15 +1,14 @@
 <?php
 
-// app/Models/Collaboration.php
+// app/Models/Revente.php
 namespace App\Models;
 
 use App\Models\User;
 use App\Models\Produit;
-use App\Models\Commercant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-class Collaboration extends Model
+class Revente extends Model
 {
     use HasFactory;
     // protected $keyType = 'string';
@@ -18,7 +17,7 @@ class Collaboration extends Model
     protected $fillable = [
         'id',
         'produit_id',
-        'commercant_id',
+        'revendeur_id',
         'prix_revente',
         'statut',
         'gains_totaux'
@@ -33,8 +32,8 @@ class Collaboration extends Model
         return $this->belongsTo(Produit::class);
     }
 
-    public function commercant()
+    public function revendeur()
     {
-        return $this->belongsTo(Commercant::class);
+        return $this->belongsTo(User::class, 'revendeur_id');
     }
 }

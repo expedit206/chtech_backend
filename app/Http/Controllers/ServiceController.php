@@ -4,10 +4,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Service;
-use App\Models\CategorieService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
-use Intervention\Image\Laravel\Facades\Image;
+use Illuminate\Http\JsonResponse;
+use App\Http\Controllers\Controller;
 
 class ServiceController extends Controller
 {
@@ -40,7 +39,7 @@ class ServiceController extends Controller
             }
 
             // Tri
-            $sort = $request->get('sort', 'date_publication');
+            $sort = $request->get('sort', 'created_at');
             $order = $request->get('order', 'desc');
 
             $query->orderBy($sort, $order);
@@ -56,33 +55,77 @@ class ServiceController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération des services',
+                'message' =>  $e->getMessage(),
                 'error' => $e->getMessage()
             ], 500);
         }
     }
 
     // Afficher un service spécifique
-    public function show($id)
+  
+    public function show($id): JsonResponse
     {
         try {
-            $service = Service::with(['categorie', 'user', 'avis.user'])
-                ->findOrFail($id);
+            $service = Service::with([
+                'user:id,nom,email,telephone,photo,created_at',
+                'category:id,nom',
+                'reviews.user:id,nom,photo'
+            ])
+            ->findOrFail($id);
+
+            // Incrémenter le compteur de vues
+            // $service->increment('views_count');
+
+            // Services similaires (même catégorie)
+            $similarServices = Service::with(['user', 'category'])
+                ->where('category_id', $service->category_id)
+                ->where('id', '!=', $service->id)
+                ->limit(6)
+                ->get();
 
             return response()->json([
                 'success' => true,
-                'data' => $service,
-                'message' => 'Service récupéré avec succès'
+                'data' => [
+                    'service' => $service,
+                    'similar_services' => $similarServices,
+                    'statistics' => [
+                        'average_rating' => $service->note_moyenne,
+                        'total_reviews' => $service->nombre_avis
+                    ]
+                ]
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Service non trouvé',
+                'message' => $e->getMessage(),
                 'error' => $e->getMessage()
             ], 404);
         }
     }
+
+     public function getReviews($id): JsonResponse
+    {
+        try {
+            $reviews = Service::findOrFail($id)
+                ->reviews()
+                ->with('user:id,nom,photo')
+                ->orderBy('created_at', 'desc')
+                ->paginate(10);
+
+            return response()->json([
+                'success' => true,
+                'data' => $reviews
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors du chargement des avis'
+            ], 500);
+        }
+    }
+
 
 
       public function search(Request $request)

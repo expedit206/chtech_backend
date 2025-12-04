@@ -3,102 +3,135 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Parrainage;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Models\NiveauParrainage;
 use App\Models\ParrainageNiveau;
+use App\Services\ParrainageService;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 
 class ParrainageController extends Controller
 {
-    /**
-     * Récupérer les données du tableau de bord de parrainage pour l'utilisateur connecté
-     */
-    public function dashboard(Request $request)
-    {
-        $user = $request->user();
 
-        if (!$user) {
-            return response()->json(['message' => 'Utilisateur non authentifié'], 401);
+    public function mesParrainages()
+    {
+        $user = auth()->user();
+        
+        // Parrainages où l'utilisateur est parrain
+        $parrainages = Parrainage::with('filleul')
+            ->where('parrain_id', $user->id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Vérifier si l'utilisateur est filleul (avec parrainage en attente)
+        $parrainageEnAttente = Parrainage::with('parrain')
+            ->where('filleul_id', $user->id)
+            ->where('statut', 'en_attente')
+            ->first();
+
+        // Formater les données du parrainage en attente
+        $userEstFilleul = null;
+        if ($parrainageEnAttente) {
+            $userEstFilleul = [
+                'id' => $parrainageEnAttente->id,
+                'parrain_nom' => $parrainageEnAttente->parrain->nom,
+                'email_verification' => $parrainageEnAttente->email_verification,
+                'email_verifie' => $parrainageEnAttente->email_verifie,
+                'bonus_parrain' => $parrainageEnAttente->bonus_parrain,
+                'statut' => $parrainageEnAttente->statut
+            ];
         }
 
-        // Récupérer tous les filleuls (commerçants et non-commerçants)
-        $allParrainages = User::where('parrain_id', $user->id)->with('commercant')->get()->map(function ($filleul) {
-            return [
-                'filleul_nom' => $filleul->nom,
-                'date_inscription' => $filleul->created_at,
-                'est_commercant' => $filleul->commercant?->email_verified_at ? true : false,
-                'id' => $filleul->commercant ? $filleul->commercant->id : $filleul->id,
-            ];
-        });
-
-        // Calculer le nombre total de filleuls (commerçants et non-commerçants)
-        $totalParrainages = $allParrainages->count();
-
-        // Filtrer les commerçants pour les niveaux et la progression
-        $parrainagesCommercants = $allParrainages->filter(function ($filleul) {
-            return $filleul['est_commercant'];
-        });
-
-        $totalParrainagesCommercants = $parrainagesCommercants->count();
-        $totalGains = $this->calculateTotalGains($user->id);
-
-        // Récupérer les niveaux et déterminer le niveau actuel basé sur les commerçants
-        $niveaux = ParrainageNiveau::orderBy('filleuls_requis')->get();
-        $niveauActuel = $niveaux->where('filleuls_requis', '<=', $totalParrainagesCommercants)->last() ?? $niveaux->first();
-        $niveauSuivant = $niveaux->firstWhere('filleuls_requis', '>', $totalParrainagesCommercants) ?? $niveaux->last();
-
-        $progression = $totalParrainagesCommercants > 0 && $niveauSuivant
-            ? (($totalParrainagesCommercants) / ($niveauSuivant->filleuls_requis)) * 100
-            : 0;
-        // $progression = $totalParrainagesCommercants > 0 && $niveauSuivant
-        //     ? (($totalParrainagesCommercants - $niveauActuel->filleuls_requis) / ($niveauSuivant->filleuls_requis - $niveauActuel->filleuls_requis)) * 100
-        //     : 0;
+        $stats = [
+            'total' => $parrainages->count(),
+            'en_attente' => $parrainages->where('statut', 'en_attente')->count(),
+            'actifs' => $parrainages->where('statut', 'bonus_attribue')->count(),
+            'total_bonus' => $parrainages->where('statut', 'bonus_attribue')->count(),
+            // 'total_bonus' => $parrainages->where('bonus_attribue', true)->sum('bonus_parrain'),
+        ];
 
         return response()->json([
-            'code' => $user->parrainage_code,
-            'parrainages' => $allParrainages, // Tous les filleuls (commerçants et non-commerçants)
-            'total_gains' => $totalGains,
-            'total_parrainages' => $totalParrainages, // Nombre total de filleuls
-            'total_parrainages_commercants' => $totalParrainagesCommercants, // Nombre de commerçants pour les niveaux
-            'niveau_actuel' => [
-                'id' => $niveauActuel->id,
-                'nom' => $niveauActuel->nom,
-                'emoji' => $niveauActuel->emoji,
-                'couleur' => $niveauActuel->couleur,
-                'filleuls_requis' => $niveauActuel->filleuls_requis,
-                'jetons_bonus' => $niveauActuel->jetons_bonus,
-                'avantages' => json_decode($niveauActuel->avantages, true),
-            ],
-            'niveau_suivant' => $niveauSuivant ? [
-                'id' => $niveauSuivant->id,
-                'nom' => $niveauSuivant->nom,
-                'jetons_bonus' => $niveauSuivant->jetons_bonus,
+            'parrainages' => $parrainages,
+            'statistiques' => $stats,
+            'parrainageEnAttente' => $userEstFilleul
+        ]);
+    }
 
-                'filleuls_requis' => $niveauSuivant->filleuls_requis,
-            ] : null,
-            'progression' => min($progression, 100), // Limiter à 100%
+    public function verifierEmail(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'code_verification' => 'required|string|size:6'
+        ]);
+
+        $user = auth()->user();
+
+        try {
+            $parrainageService = new ParrainageService();
+            $parrainage = $parrainageService->verifierEmailEtAttribuerBonus(
+                $request->email, 
+                $request->code_verification
+            );
+
+            // Vérifier que c'est bien le filleul qui vérifie
+            if ($parrainage->filleul_id !== $user->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Action non autorisée'
+                ], 403);
+            }else{
+                $user->jetons +=$parrainage->bonus_parrain;
+                $user->save();
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Email vérifié avec succès ! Vous avez reçu vos jetons.',
+                'bonus_attribue' => $parrainage->bonus_parrain
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    public function demanderVerificationEmail(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+        ]);
+
+        $user = auth()->user();
+        
+        // Trouver le parrainage où l'utilisateur est le filleul
+        $parrainage = Parrainage::where('filleul_id', $user->id)
+                               ->where('statut', 'en_attente')
+                               ->first();
+
+        if (!$parrainage) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Aucun parrainage en attente trouvé'
+            ], 404);
+        }
+
+        $parrainageService = new ParrainageService();
+        $code = $parrainageService->demanderVerificationEmail($parrainage, $request->email);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Code de vérification envoyé à ' . $request->email,
+            'code' => $code
         ]);
     }
 
 
-    public function getAllNiveaux()
-    {
-        $niveaux = ParrainageNiveau::orderBy('filleuls_requis')->get()->map(function ($niveau) {
-            return [
-                'id' => $niveau->id,
-                'nom' => $niveau->nom,
-                'emoji' => $niveau->emoji,
-                'couleur' => $niveau->couleur,
-                'filleuls_requis' => $niveau->filleuls_requis,
-                'jetons_bonus' => $niveau->jetons_bonus,
-                'avantages' => json_decode($niveau->avantages, true),
-            ];
-        });
 
-        return response()->json(['niveaux' => $niveaux]);
-    }
     /**
      * Générer une suggestion de code de parrainage
      */
@@ -150,32 +183,4 @@ class ParrainageController extends Controller
         ]);
     }
 
-    /**
-     * Calculer les gains totaux de l'utilisateur (1 jeton de 500 FCFA par commerçant actif)
-     */
-    protected function calculateTotalGains($userId)
-    {
-        // Récupérer le nombre de commerçants parrainés
-        $totalParrainagesCommercants = User::where('parrain_id', $userId)->
-        // whereHas('commercant')
-        whereHas('commercant', function ($query) {
-            $query->whereNotNull('email_verified_at'); // Commerçants avec email vérifié
-        })
-                ->count();
-
-        // Récupérer tous les niveaux ordonnés par filleuls_requis
-        $niveaux = ParrainageNiveau::orderBy('filleuls_requis')->get();
-
-        // Calculer les gains cumulatifs jusqu'au niveau atteint
-        $totalGains = 0;
-        foreach ($niveaux as $niveau) {
-            if ($niveau->filleuls_requis <= $totalParrainagesCommercants) {
-                $totalGains += $niveau->jetons_bonus;
-            } else {
-                break; // Arrêter dès qu'on dépasse le nombre de commerçants
-            }
-        }
-
-        return $totalGains;
-    }
 }
