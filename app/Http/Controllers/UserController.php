@@ -66,9 +66,8 @@ class UserController extends Controller
             return response()->json(['message' => 'Utilisateur non authentifié'], 401);
         }
 
-        $user['favoris_count'] = $user->favoris_count();
         $user['conversations_count'] = $user->conversations_count();
-        $user['products_count'] = $user->commercant?->produits?->count() ?? 0;
+        $user['products_count'] = $user?->produits?->count() ?? 0;
         
         return response()->json(['user' => $user], 200);
     }

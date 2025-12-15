@@ -52,8 +52,7 @@ class FavoriteController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la mise à jour des favoris',
-                'error' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 500);
         }
    

@@ -183,4 +183,97 @@ class ParrainageController extends Controller
         ]);
     }
 
+
+
+    public function getUnreadCount(Request $request)
+    {
+        try {
+            $userId = Auth::id();
+            
+            // Compter les parrainages non lus où l'utilisateur est le parrain
+            $unreadCount = Parrainage::where('parrain_id', $userId)
+                ->where('is_read', false)
+                ->count();
+            
+            // Mettre à jour le badge dans la table badge_unreads
+            $this->updateParrainageBadge($userId, $unreadCount);
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'unread_count' => $unreadCount,
+                    'total_unread' => $unreadCount
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des parrainages non lus',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Mettre à jour le badge des parrainages
+     */
+    private function updateParrainageBadge($userId, $count)
+    {
+        $badge = BadgeUnread::firstOrCreate(
+            ['user_id' => $userId],
+            [
+                'messages' => 0,
+                'reventes' => 0,
+                'parrainages' => 0,
+                'last_updated' => now()
+            ]
+        );
+        
+        $badge->parrainages = $count;
+        $badge->last_updated = now();
+        $badge->save();
+        
+        return $badge;
+    }
+    
+    /**
+     * Marquer tous les parrainages comme lus
+     */
+    public function markAllAsRead(Request $request)
+    {
+        try {
+            $userId = Auth::id();
+            
+            // Marquer tous les parrainages non lus comme lus
+            Parrainage::where('parrain_id', $userId)
+                ->where('is_read', false)
+                ->update([
+                    'is_read' => true,
+                    'updated_at' => now()
+                ]);
+            
+            // Mettre à jour le badge
+            $this->updateParrainageBadge($userId, 0);
+            
+            // Optionnel: Émettre un événement pour mise à jour en temps réel
+            broadcast(new \App\Events\BadgesUpdated($userId, 'parrainages', 0));
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Tous les parrainages ont été marqués comme lus',
+                'data' => [
+                    'unread_count' => 0
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors du marquage des parrainages comme lus',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
 }

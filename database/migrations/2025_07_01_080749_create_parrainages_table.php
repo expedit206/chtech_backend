@@ -31,10 +31,14 @@ return new class extends Migration
             $table->foreignUuid('parrain_id')->references('id')->on('users')->onDelete('cascade');
             $table->foreignUuid('filleul_id')->references('id')->on('users')->onDelete('cascade');
             
+                        $table->boolean('is_read')->default(false);
+
             // Contraintes
             $table->unique(['parrain_id', 'filleul_id']);
             $table->index(['email_verification', 'code_verification']);
             $table->index('statut');
+                        $table->index(['id', 'is_read', 'created_at']);
+
             
                 $table->timestamps();
             });

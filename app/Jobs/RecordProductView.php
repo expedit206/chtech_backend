@@ -30,7 +30,7 @@ class RecordProductView implements ShouldQueue
             Redis::set($redisKey, 1);
             Redis::expire($redisKey, 86400); // Expire après 24h
 
-            // Mise à jour de product_counts
+            // Mise à jour de produit_counts
             $this->syncViewsToDatabase();
         }
     }

@@ -19,6 +19,11 @@ return new class extends Migration
             $table->enum('statut', ['en_attente', 'valider', 'refuser'])->default('en_attente');
             $table->decimal('gains_totaux', 10, 2)->default(0);
             // unique produit_id revendeur
+            $table->boolean('is_read')->default(false);
+
+                        $table->index(['revendeur_id', 'is_read', 'created_at']);
+
+            
             
             $table->timestamps();
 

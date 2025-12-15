@@ -36,6 +36,9 @@ return new class extends Migration
                     // est_actif BOOLEAN DEFAULT TRUE,
                     $table->json('localisation')->nullable(); // Pour stocker des données de localisation plus détaillées
                 $table->boolean('est_actif')->default(true);
+
+                                $table->boolean('is_promoted')->default(false);
+
             $table->timestamps();
 
             // $table->index('category_id');

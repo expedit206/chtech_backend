@@ -18,8 +18,8 @@ class CheckPremiumLimits
 
         switch ($limitType) {
             case 'product':
-                $productCount = $user->commercant->produits()->count();
-                if (!$user->premium && $productCount >= 50) {
+                $ProduitCount = $user->commercant->produits()->count();
+                if (!$user->premium && $ProduitCount >= 50) {
                     return response()->json(['message' => 'Limite de 50 produits atteinte. Passez à Premium pour plus.'], 403);
                 }
                 break;

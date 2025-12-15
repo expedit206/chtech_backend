@@ -85,4 +85,10 @@ class Service extends Model
         'nombre_avis' => $this->reviews->count()
     ]);
 }
+
+    public function counts()
+    {
+        return $this->hasOne(ServiceCount::class, 'service_id', 'id');
+    }
+
 }

@@ -4,9 +4,15 @@ namespace App\Http\Controllers;
 
 use Ramsey\Uuid\Uuid;
 use App\Models\Produit;
+use App\Models\Revente;
+use App\Models\BadgeUnread;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
-use App\Models\Revente;
+use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
+use App\Services\NotificationService;
+use App\Services\NotificationTemplateService;
 
 class ReventeController extends Controller
 {
@@ -51,7 +57,9 @@ class ReventeController extends Controller
         $produit = Produit::findOrFail($data['produit_id']);
 
         $existRevente = Revente::where('revendeur_id', $user->id)
-        ->where('produit_id', $produit->id)
+        ->where('produit_id', $produit->id)        
+        ->where('statut', 'valider')
+        ->orWhere('statut', 'en_attente')
         ->first();
         if ($existRevente) {
             return response()->json(['message' => 'Vous avez deja une revente pour ce produit'], 422);
@@ -114,6 +122,8 @@ class ReventeController extends Controller
        
         $existRevente = Revente::where('revendeur_id', $user->id)
         ->where('produit_id', $produit->id)
+        ->where('statut', 'valider')
+        ->orWhere('statut', 'en_attente')
         ->first();
         if ($existRevente) {
             return response()->json(['message' => 'Vous avez deja une revente pour ce produit','revendu'=>true]);
@@ -162,5 +172,97 @@ class ReventeController extends Controller
             return response()->json(['message'=>$e->getMessage()],500);
         }
 
+    }
+
+
+        public function getUnreadCount(Request $request)
+    {
+        try {
+            $userId = Auth::id();
+            
+            // Compter les reventes non lues où l'utilisateur est le revendeur
+            $unreadCount = Revente::where('revendeur_id', $userId)
+                ->where('is_read', false)
+                ->count();
+            
+            // Mettre à jour le badge dans la table badge_unreads
+            $this->updateReventeBadge($userId, $unreadCount);
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'unread_count' => $unreadCount,
+                    'total_unread' => $unreadCount
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des reventes non lues',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Mettre à jour le badge des reventes
+     */
+    private function updateReventeBadge($userId, $count)
+    {
+        $badge = BadgeUnread::firstOrCreate(
+            ['user_id' => $userId],
+            [
+                'messages' => 0,
+                'reventes' => 0,
+                'parrainages' => 0,
+                'last_updated' => now()
+            ]
+        );
+        
+        $badge->reventes = $count;
+        $badge->last_updated = now();
+        $badge->save();
+        
+        return $badge;
+    }
+    
+    /**
+     * Marquer toutes les reventes comme lues
+     */
+    public function markAllAsRead(Request $request)
+    {
+        try {
+            $userId = Auth::id();
+            
+            // Marquer toutes les reventes non lues comme lues
+            Revente::where('revendeur_id', $userId)
+                ->where('is_read', false)
+                ->update([
+                    'is_read' => true,
+                    'updated_at' => now()
+                ]);
+            
+            // Mettre à jour le badge
+            $this->updateReventeBadge($userId, 0);
+            
+            // Optionnel: Émettre un événement pour mise à jour en temps réel
+            // broadcast(new \App\Events\BadgesUpdated($userId, 'reventes', 0));
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Toutes les reventes ont été marquées comme lues',
+                'data' => [
+                    'unread_count' => 0
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors du marquage des reventes comme lues',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

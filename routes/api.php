@@ -7,27 +7,29 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\BadgeController;
 use App\Http\Controllers\JetonController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\StatsController;
 use Illuminate\Support\Facades\Broadcast;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\WalletController;
+
 use App\Http\Controllers\ProduitController;
-
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\ServiceController;
 
+use App\Http\Controllers\ReventeController;
+use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\FirebaseController;
 use App\Http\Controllers\AbonnementController;
 use App\Http\Controllers\ParrainageController;
+use App\Http\Controllers\InteractionController;
 use App\Http\Controllers\MarketplaceController;
 use App\Http\Controllers\ProduitUserController;
 use App\Http\Controllers\ServiceUserController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SubscriptionController;
-use App\Http\Controllers\ReventeController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\ProduitReviewController;
 use App\Http\Controllers\ServiceReviewController;
@@ -204,6 +206,41 @@ Route::prefix('services')->group(function () {
         Route::get('/services', [MarketplaceController::class, 'getServices']);
         Route::get('/search', [MarketplaceController::class, 'globalSearch']);
     });
+
+
+
+
+        Route::prefix('interactions')->group(function () {
+        Route::post('/', [InteractionController::class, 'store']);
+        Route::get('/', [InteractionController::class, 'index']);
+        Route::get('/preferred-categories', [InteractionController::class, 'preferredCategories']);
+    });
+
+        // Routes pour les badges
+    Route::prefix('badges')->group(function () {
+        Route::get('/count', [BadgeController::class, 'getUnreadCount']);
+        Route::post('/mark-read', [BadgeController::class, 'markAllAsRead']);
+        Route::post('/sync', [BadgeController::class, 'syncBadges']);
+    });
+    
+    // Routes pour les messages
+    Route::prefix('messages')->group(function () {
+        Route::put('/mark-all-as-read', [ChatController::class, 'markAllAsRead']);
+        Route::get('/unread-count', [ChatController::class, 'getUnreadCount']);
+    });
+    
+    // Routes pour les reventes
+    Route::prefix('reventes')->group(function () {
+        Route::get('/unread-count', [ReventeController::class, 'getUnreadCount']);
+        Route::put('/mark-all-as-read', [ReventeController::class, 'markAllAsRead']);
+    });
+    
+    // Routes pour les parrainages
+    Route::prefix('parrainages')->group(function () {
+        Route::get('/unread-count', [ParrainageController::class, 'getUnreadCount']);
+        Route::put('/mark-all-as-read', [ParrainageController::class, 'markAllAsRead']);
+    });
+    
 });
 
 // routes/api.php

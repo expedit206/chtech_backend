@@ -3,10 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Service;
-use Intervention\Image\Laravel\Facades\Image;
-use App\Http\Controllers\Controller;
+use App\Models\ServiceCount;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
+use Intervention\Image\Laravel\Facades\Image;
 
 class ServiceUserController extends Controller
 {
@@ -91,6 +92,11 @@ class ServiceUserController extends Controller
                 'disponibilite' => 'disponible',
                 'images' => $images
             ]);
+
+               ServiceCount::create([
+            'service_id' => $service->id,
+         
+        ]);
 
             return response()->json([
                 'success' => true,

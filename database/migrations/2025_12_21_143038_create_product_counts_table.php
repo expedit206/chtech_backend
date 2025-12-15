@@ -8,21 +8,25 @@ return new class extends Migration
 {
     public function up()
     {
-        Schema::create('product_counts', function (Blueprint $table) {
+        Schema::create('produit_counts', function (Blueprint $table) {
             $table->uuid('produit_id')->primary();
-            $table->unsignedInteger('views_count')->default(0);
             $table->unsignedInteger('favorites_count')->default(0);
+            $table->unsignedInteger('clics_count')->default(0);
+            $table->unsignedInteger('contacts_count')->default(0);
+            $table->unsignedInteger('partages_count')->default(0);
             $table->timestamps();
 
             $table->foreign('produit_id')->references('id')->on('produits')->onDelete('cascade');
 
-            $table->index('views_count');
+            $table->index('partages_count');
             $table->index('favorites_count');
+            $table->index('clics_count');
+            $table->index('contacts_count');
         });
     }
 
     public function down()
     {
-        Schema::dropIfExists('product_counts');
+        Schema::dropIfExists('produit_counts');
     }
 };

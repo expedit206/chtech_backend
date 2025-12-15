@@ -18,12 +18,15 @@ return new class extends Migration
             $table->foreignUuid('receiver_id')->references('id')->on('users')->onDelete('cascade');
             // $table->foreignUuid('product_id')->references('id')->on('produits')->onDelete('cascade')->nullable();
             $table->text('content');
-            $table->boolean('is_read')->default(false);
-
             $table->uuid('product_id')->nullable()->default(null);
             $table->foreign('product_id')->references('id')->on('produits')->onDelete('set null');
+            $table->boolean('is_read')->default(false);
+
+            $table->timestamp('read_at')->nullable();
 
             $table->timestamps();
+
+                        $table->index(['is_read', 'created_at']);
 
             $table->index(['sender_id', 'receiver_id']);
         });

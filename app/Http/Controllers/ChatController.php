@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Message;
 use App\Events\MessageSent;
+use App\Models\BadgeUnread;
 use Illuminate\Http\Request;
 use App\Events\MessageDeleted;
 use App\Events\MessageUpdated;
@@ -226,15 +227,87 @@ class ChatController extends Controller
     
     public function markAllAsRead(Request $request)
     {
-        $user = $request->user();
-        Message::where('receiver_id', $user->id)
-            ->where('is_read', false)
-            ->update(['is_read' => true]);
+        try {
+            $userId = Auth::id();
             
-        $unreadMessagesCount = Message::where('receiver_id', $user->id)->where('is_read', false)->count();
-        return response()->json(['message' => 'Tous les messages marqués comme lus', 'unread_messages' => $unreadMessagesCount]);
+            // Marquer tous les messages non lus comme lus
+            Message::where('receiver_id', $userId)
+                ->where('is_read', false)
+                ->update([
+                    'is_read' => true,
+                    'read_at' => now()
+                ]);
+            
+            // Mettre à jour le badge
+            $this->updateMessageBadge($userId, 0);
+            
+            // Optionnel: Émettre un événement pour mise à jour en temps réel
+            // broadcast(new \App\Events\BadgesUpdated($userId, 'messages', 0));
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Tous les messages ont été marqués comme lus',
+                'data' => [
+                    'unread_count' => 0
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    
+
+      public function getUnreadCount(Request $request)
+    {
+        try {
+            $userId = Auth::id();
+            
+            // Compter les messages non lus où l'utilisateur est le destinataire
+            $unreadCount = Message::where('receiver_id', $userId)
+                ->where('is_read', false)
+                ->count();
+            
+            // Mettre à jour le badge dans la table badge_unreads
+            $this->updateMessageBadge($userId, $unreadCount);
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'unread_count' => $unreadCount,
+                    'total_unread' => $unreadCount
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des messages non lus',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
+    
+    private function updateMessageBadge($userId, $count)
+    {
+        $badge = BadgeUnread::firstOrCreate(
+            ['user_id' => $userId],
+            [
+                'messages' => 0,
+                'reventes' => 0,
+                'parrainages' => 0,
+            ]
+        );
+        
+        $badge->messages = $count;
+        $badge->save();
+        
+        return $badge;
+    }
     /**
      * Éditer un message existant
      */

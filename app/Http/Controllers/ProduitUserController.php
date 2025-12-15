@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Produit;
 use Illuminate\Support\Str;
+use App\Models\ProduitCount;
+use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Intervention\Image\Laravel\Facades\Image;
+
 class ProduitUserController extends Controller
 {
 
@@ -21,7 +23,7 @@ class ProduitUserController extends Controller
         $produits = Produit::where('user_id', $user->id)
             ->with('category')
             ->withCount('favorites') // Charger le nombre de favoris
-            ->withCount('views')    // Charger le nombre de vues
+            ->withCount('clics')    // Charger le nombre de vues
             ->orderBy('created_at', 'desc')    // Charger le nombre de vues
             ->get();
         // return response()->json(['produits' => 'produits']);
@@ -83,6 +85,11 @@ class ProduitUserController extends Controller
             'marge_revente_min' => $validated['marge_min'] ?? null,
             'quantite' => $validated['stock'],
             'ville' => $validated['ville'] ?? 'aucun',
+        ]);
+         
+         ProduitCount::create([
+            'produit_id' => $produit->id,
+         
         ]);
 
         return response()->json(['produit' => $produit], 201);

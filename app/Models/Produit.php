@@ -3,14 +3,17 @@
 // app/Models/Produit.php
 namespace App\Models;
 
+use Auth;
 use App\Models\User;
 use App\Models\Boost;
+use App\Models\Revente;
 use App\Models\Category;
 use App\Models\ProductView;
-use App\Models\ProductCount;
-use App\Models\Revente;
+use App\Models\ProduitCount;
 use App\Models\CategoryProduit;
 use App\Models\ProductFavorite;
+use App\Models\ProduitInteraction;
+use App\Traits\InteractionService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
@@ -66,11 +69,21 @@ class Produit extends Model
     }
 
 
-    public function views()
+    public function interactions()
     {
-        return $this->hasMany(ProductView::class);
+        return $this->hasMany(ProduitInteraction::class, 'produit_id', 'id');
     }
 
+    
+
+
+    public function clics()
+    {
+        return $this->hasMany(ProduitInteraction::class, 'produit_id')
+                    ->where('type', 'clic');
+    }
+
+    
    
 
 
@@ -79,12 +92,29 @@ class Produit extends Model
         return $this->favorites()->count();
     }
 
+public function favorites()
+{
+    return $this->hasMany(ProduitInteraction::class, 'produit_id')
+                ->where('type', 'favori');
+    // 'user_id' = clé étrangère dans ProduitInteraction
+    // 'id' = clé primaire dans User (par défaut, donc optionnel)
+}
 
-    public function favorites()
-    {
-        return $this->hasMany(ProductFavorite::class);
+//isFavoritedByuser
+
+public function isFavorited()
+{
+    if (!auth()->id()) {
+        return false;
     }
-
+    
+    return ProduitInteraction::all();
+    // return $this->interactions();
+    // return $this->interactions()
+    //             ->where('user_id', auth()->id())
+    //             ->where('type','favori')
+    //             ->first();
+}
 
     public function boosts()
     {
@@ -93,7 +123,7 @@ class Produit extends Model
 
     public function counts()
     {
-        return $this->hasOne(ProductCount::class, 'produit_id', 'id');
+        return $this->hasOne(ProduitCount::class, 'produit_id', 'id');
     }
 
 
@@ -128,4 +158,10 @@ class Produit extends Model
         return $this->hasMany(ProduitReview::class);
     }
 
+
+    // public function increment(string $action){
+    //     $this->counts->$action +=1  ;
+
+
+    // }
 }
