@@ -105,6 +105,11 @@ class InteractionService
     }
 
     /**
+     * Récupère le nombre  d'interactions  par produit
+     */
+ 
+
+    /**
      * Récupère les favoris d'un utilisateur
      */
     public function getUserFavorites($contentType, $userId = null)

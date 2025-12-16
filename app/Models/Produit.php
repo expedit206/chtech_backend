@@ -108,12 +108,11 @@ public function isFavorited()
         return false;
     }
     
-    return ProduitInteraction::all();
     // return $this->interactions();
-    // return $this->interactions()
-    //             ->where('user_id', auth()->id())
-    //             ->where('type','favori')
-    //             ->first();
+    return $this->favorites()
+                ->where('user_id', auth()->id())
+                ->where('type','favori')
+                ->first();
 }
 
     public function boosts()

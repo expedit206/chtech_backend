@@ -3,6 +3,10 @@
 // app/Http/Controllers/Api/InteractionController.php
 namespace App\Http\Controllers;
 
+use App\Models\Produit;
+use App\Models\Service;
+use App\Models\Promotion;
+use App\Models\ProduitCount;
 use Illuminate\Http\Request;
 use App\Models\ProduitInteraction;
 use App\Models\ServiceInteraction;
@@ -63,6 +67,11 @@ class InteractionController extends Controller
                     $request->type
                 );
 
+                    if ($request->type == 'clic' && $request->content_type == 'produit') {
+                $this->handlePromotionClick($request->content_id, auth()->id());
+            }
+
+
             return response()->json([
                 'success' => true,
                 'message' => 'Interaction enregistrée',
@@ -77,6 +86,47 @@ class InteractionController extends Controller
             ], 500);
         }
     }
+
+       private function handlePromotionClick($produitId, $userId = null)
+    {
+        // Vérifier si le produit a une promotion active
+        $produit = Produit::find($produitId);
+        
+        if (!$produit || !$produit->is_promoted) {
+            return;
+        }
+
+        // Trouver la promotion active
+        $promotion = Promotion::where('produit_id', $produitId)
+            ->where('status', 'active')
+            ->where('remaining_clicks', '>', 0)
+            ->first();  
+
+        if (!$promotion) {
+            // Si pas de promotion trouvée mais le produit est marqué comme promu, corriger
+            $produit->update(['is_promoted' => false]);
+            return;
+        }
+
+        // Enregistrer le clic promotionnel
+        $promotion->used_clicks += 1;
+        $promotion->remaining_clicks -= 1;
+
+        // Si plus de clics, terminer la promotion
+        if ($promotion->remaining_clicks <= 0) {
+            $promotion->status = 'completed';
+            $promotion->ended_at = now();
+            
+            // Mettre à jour le produit
+            $produit->update([
+                'is_promoted' => false,
+                'promotion_ends_at' => null
+            ]);
+        }
+
+        $promotion->save();
+    }
+
 
     /**
      * Récupérer les interactions d'un utilisateur
@@ -119,6 +169,22 @@ class InteractionController extends Controller
         ]);
     }
 
+
+public function getProductInteraction($id)
+{
+    $userId = Auth::id();
+    
+    $interactionsByType = ProduitCount::where('produit_id', $id)
+        ->select(
+            'clics_count',
+            'favorites_count',
+            'partages_count',
+            'contacts_count'
+        )
+        ->first();
+    
+    return response()->json(['data' => $interactionsByType]);
+}
     /**
      * Récupérer les catégories préférées
      */

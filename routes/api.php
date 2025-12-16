@@ -30,6 +30,7 @@ use App\Http\Controllers\ProduitUserController;
 use App\Http\Controllers\ServiceUserController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\ProduitReviewController;
 use App\Http\Controllers\ServiceReviewController;
@@ -85,6 +86,16 @@ Route::get('/produits/categories', [CategoryProduitController::class, 'index']);
         Route::get('reventes/{id}/status', [ReventeController::class, 'status']);
     Route::get('/reventes', [ReventeController::class, 'index'])->name('reventes.index');
         
+      Route::post('/promotions/create', [PromotionController::class, 'create']);
+    
+    // Récupérer la promotion active d'un produit
+    Route::get('/active/{productId}', [PromotionController::class, 'getActive']);
+    
+    // Arrêter une promotion
+    Route::post('/stop/{promotionId}', [PromotionController::class, 'stop']);
+    
+    // Tracker un clic (peut être appelée sans auth pour les visiteurs)
+    Route::post('/track-click', [PromotionController::class, 'trackClick']);
         
 
     Route::get('/user/mesProduits', [ProduitUserController::class, 'produits']);
@@ -210,6 +221,7 @@ Route::prefix('services')->group(function () {
 
 
 
+    Route::get('/produits/{id}/counts', [InteractionController::class, 'getProductInteraction']);
         Route::prefix('interactions')->group(function () {
         Route::post('/', [InteractionController::class, 'store']);
         Route::get('/', [InteractionController::class, 'index']);
