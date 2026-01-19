@@ -9,13 +9,19 @@ use App\Http\Controllers\Controller;
 
 class CategoryProduitController extends Controller
 {
- public function index()
+    /**
+     * Liste toutes les catégories de produits ordonnées par nom
+     */
+    public function index()
     { 
         $categories = CategoryProduit::orderBy('nom', 'asc')->get();
         return response()->json(['categoryProduits' => $categories]);
         // return response()->json(['categoryProduits' => $categories],400);
     }
 
+    /**
+     * Récupère les produits liés à la catégorie d'un produit spécifique
+     */
       public function relatedProduct(Produit $produit, Request $request)
     {
         $categoryId = $request->query('category_id', $produit->category_id); // Utilise la catégorie du produit si non spécifiée

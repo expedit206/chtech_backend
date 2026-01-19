@@ -7,8 +7,7 @@ use Auth;
 use App\Models\User;
 use App\Models\Boost;
 use App\Models\Revente;
-use App\Models\Category;
-use App\Models\ProductView;
+
 use App\Models\ProduitCount;
 use App\Models\CategoryProduit;
 use App\Models\ProductFavorite;
@@ -38,6 +37,7 @@ class Produit extends Model
         'note_moyenne',
         'nombre_avis',
         'revendable',
+        'is_promoted',
 
         'photos',
         'collaboratif',

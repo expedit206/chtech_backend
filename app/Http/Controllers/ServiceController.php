@@ -11,6 +11,9 @@ use App\Http\Controllers\Controller;
 class ServiceController extends Controller
 {
     // Liste des services avec filtres
+    /**
+     * Liste les services avec pagination et filtres (catégorie, ville, prix)
+     */
     public function index(Request $request)
     {
         try {
@@ -63,6 +66,9 @@ class ServiceController extends Controller
 
     // Afficher un service spécifique
   
+    /**
+     * Affiche les détails complets d'un service (utilisateur, avis, services similaires)
+     */
     public function show($id): JsonResponse
     {
         try {
@@ -104,6 +110,9 @@ class ServiceController extends Controller
         }
     }
 
+    /**
+     * Récupère les avis clients paginés pour un service spécifique
+     */
      public function getReviews($id): JsonResponse
     {
         try {
@@ -128,6 +137,9 @@ class ServiceController extends Controller
 
 
 
+    /**
+     * Effectue une recherche textuelle dans les titres, descriptions et compétences des services
+     */
       public function search(Request $request)
     {
         try {

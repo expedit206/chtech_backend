@@ -14,6 +14,9 @@ class PasswordResetController extends Controller
     /**
      * Génère un token de réinitialisation
      */
+    /**
+     * Génère un token de réinitialisation de mot de passe et l'enregistre avec une expiration
+     */
     public function generateResetToken(Request $request)
     {
         $request->validate([
@@ -63,6 +66,9 @@ class PasswordResetController extends Controller
 
     /**
      * Réinitialise le mot de passe avec le token
+     */
+    /**
+     * Réinitialise le mot de passe de l'utilisateur après validation du token et de l'expiration
      */
     public function resetPassword(Request $request)
     {
@@ -137,6 +143,9 @@ class PasswordResetController extends Controller
 
     /**
      * Vérifie la validité d'un token
+     */
+    /**
+     * Vérifie si un token de réinitialisation est toujours valide et non expiré
      */
     public function verifyToken(Request $request)
     {

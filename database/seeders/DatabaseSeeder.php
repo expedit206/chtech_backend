@@ -8,7 +8,7 @@ use Illuminate\Database\Seeder;
 use Database\Seeders\UserSeeder;
 use Database\Seeders\ProductSeeder;
 use Database\Seeders\CategorySeeder;
-use Database\Seeders\CommercantSeeder;
+
 use Database\Seeders\CategoryProduitSeeder;
 
 class DatabaseSeeder extends Seeder
@@ -21,8 +21,8 @@ class DatabaseSeeder extends Seeder
         // User::factory(10)->create();
         $this->call([
             UserSeeder::class,
-            // CommercantSeeder::class,
             CategoryProduitSeeder::class,
+            ProductSeeder::class,
         ]);
         // User::factory()->create([
         //     'name' => 'Test User',

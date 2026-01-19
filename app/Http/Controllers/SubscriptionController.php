@@ -19,6 +19,9 @@ class SubscriptionController extends Controller
     }
 
    
+    /**
+     * Initialise une demande d'abonnement Premium via NotchPay
+     */
     public function upgradeToPremium(Request $request)
     {
         $user = $request->user();
@@ -81,6 +84,9 @@ class SubscriptionController extends Controller
     }
     /**
      * CALLBACK - Gestion du retour de NotchPay
+     */
+    /**
+     * Gère le retour de NotchPay après une tentative de paiement (activation premium si succès)
      */
     public function handleCallback(Request $request)
     {
@@ -149,6 +155,9 @@ class SubscriptionController extends Controller
        /**
      * Récupérer la transaction premium en attente de l'utilisateur (une seule max)
      */
+    /**
+     * Récupère la transaction premium actuellement en attente pour l'utilisateur
+     */
     public function getPendingTransaction(Request $request)
     {
         try {
@@ -187,6 +196,9 @@ class SubscriptionController extends Controller
 
     /**
      * Vérifier le statut d'une transaction premium
+     */
+    /**
+     * Vérifie et synchronise le statut d'une transaction spécifique avec NotchPay
      */
     public function checkTransactionStatus($id)
     {

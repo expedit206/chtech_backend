@@ -6,8 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class CategoryProduit extends Model
 {
-           protected $keyType = 'string';
+    protected $keyType = 'string';
     public $incrementing = false;
+
+    protected $fillable = ['nom', 'image', 'parent_id'];
 
     protected static function booted()
     {

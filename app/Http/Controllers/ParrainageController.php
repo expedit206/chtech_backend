@@ -15,6 +15,9 @@ use Illuminate\Support\Facades\Auth;
 class ParrainageController extends Controller
 {
 
+    /**
+     * Récupère la liste des parrainages (en tant que parrain ou filleul en attente) et les statistiques
+     */
     public function mesParrainages()
     {
         $user = auth()->user();
@@ -59,6 +62,9 @@ class ParrainageController extends Controller
         ]);
     }
 
+    /**
+     * Vérifie le code de validation d'email et attribue les bonus de parrainage
+     */
     public function verifierEmail(Request $request)
     {
         $request->validate([
@@ -100,6 +106,9 @@ class ParrainageController extends Controller
         }
     }
 
+    /**
+     * Génère et envoie un code de vérification d'email pour valider un parrainage
+     */
     public function demanderVerificationEmail(Request $request)
     {
         $request->validate([
@@ -135,6 +144,9 @@ class ParrainageController extends Controller
     /**
      * Générer une suggestion de code de parrainage
      */
+    /**
+     * Génère une suggestion de code de parrainage unique basé sur le nom de l'utilisateur
+     */
     public function generateCode(Request $request)
     {
         $user = $request->user();
@@ -156,6 +168,9 @@ class ParrainageController extends Controller
 
     /**
      * Créer ou mettre à jour un code de parrainage personnalisé
+     */
+    /**
+     * Personnalise le code de parrainage de l'utilisateur
      */
     public function createCode(Request $request)
     {
@@ -185,6 +200,9 @@ class ParrainageController extends Controller
 
 
 
+    /**
+     * Récupère le nombre de parrainages non lus pour le badge de notification
+     */
     public function getUnreadCount(Request $request)
     {
         try {
@@ -239,6 +257,9 @@ class ParrainageController extends Controller
     
     /**
      * Marquer tous les parrainages comme lus
+     */
+    /**
+     * Marque tous les parrainages comme lus et réinitialise le badge
      */
     public function markAllAsRead(Request $request)
     {

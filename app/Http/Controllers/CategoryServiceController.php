@@ -10,12 +10,18 @@ use App\Http\Controllers\ServiceController;
 
 class CategoryServiceController extends Controller
 {
+    /**
+     * Liste toutes les catégories de services ordonnées par nom
+     */
     public function index()
     { 
         $categories = CategoryService::orderBy('nom', 'asc')->get();
         return response()->json(['categoryServices' => $categories]);
     }
 
+    /**
+     * Récupère les services liés à la catégorie d'un service spécifique
+     */
       public function relatedProduct(Service $produit, Request $request)
     {
         $categoryId = $request->query('category_id', $produit->category_id); // Utilise la catégorie du produit si non spécifiée

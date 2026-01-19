@@ -12,11 +12,11 @@ class Boutique extends Model
     protected $keyType = 'string';
     public $incrementing = false;
 
-    protected $fillable = ['id', 'commercant_id', 'nom', 'description', 'logo', 'ville', 'actif'];
+    protected $fillable = ['id', 'user_id', 'nom', 'description', 'logo', 'ville', 'actif'];
 
-    public function commercant()
+    public function user()
     {
-        return $this->belongsTo(Commercant::class);
+        return $this->belongsTo(User::class);
     }
 
     public function produits()

@@ -14,6 +14,9 @@ class ServiceReviewController extends Controller
     /**
      * Soumettre un nouvel avis
      */
+    /**
+     * Enregistre un nouvel avis pour un service et met à jour sa note moyenne
+     */
     public function storeServiceReview(Request $request, $serviceId): JsonResponse
     {
         try {
@@ -68,6 +71,9 @@ class ServiceReviewController extends Controller
     /**
      * Mettre à jour un avis
      */
+    /**
+     * Met à jour un avis de service existant
+     */
     public function update(Request $request, $reviewId): JsonResponse
     {
         try {
@@ -104,6 +110,9 @@ class ServiceReviewController extends Controller
     /**
      * Répondre à un avis (prestataire)
      */
+    /**
+     * Permet au prestataire de répondre à un avis client
+     */
     public function respond(Request $request, $reviewId): JsonResponse
     {
         try {
@@ -135,6 +144,9 @@ class ServiceReviewController extends Controller
 
     /**
      * Récupérer les avis d'un service avec pagination
+     */
+    /**
+     * Liste les avis paginés pour un service spécifique avec statistiques globales
      */
     public function index($serviceId, Request $request): JsonResponse
     {

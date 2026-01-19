@@ -11,7 +11,7 @@ use Illuminate\Http\JsonResponse;
 class MarketplaceController extends Controller
 {
     /**
-     * Récupérer les produits pour la marketplace
+     * Récupère la liste des produits pour la marketplace avec filtres et scores
      */
 public function getProduits(Request $request): JsonResponse
 {
@@ -22,7 +22,7 @@ public function getProduits(Request $request): JsonResponse
         ->where('quantite', '>', 0);
 
     // PERSONNALISATION SIMPLE SI PAS DE FILTRES EXPLICITES
-    $hasExplicitFilters = $request->has('categoryId') || $request->has('search') || $request->has('ville');
+    $hasExplicitFilters = $request->has('categoryId') || $request->has('    ') || $request->has('ville');
     
 
     
@@ -98,10 +98,13 @@ public function getProduits(Request $request): JsonResponse
     } else {
         // COMPORTEMENT NORMAL AVEC FILTRES
         if ($request->has('categoryId') && $request->categoryId !== 'all') {
-            $query->where('category_id', $request->categoryId);
+            $query->where('category_id',  $request->categoryId)
+                  ->orWhere('description', 'like', "%{$request->categoryId}%")
+                  ->orWhere('nom', 'like', "%{$request->categoryId}%")
+            ;
         }
 
-        if ($request->has('search')) {
+        if ($request->has(' ')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('nom', 'like', "%{$search}%")
@@ -182,7 +185,7 @@ public function getProduits(Request $request): JsonResponse
 }
 }
     /**
-     * Récupérer les services pour la marketplace
+     * Récupère la liste des services disponibles sur la marketplace
      */
     public function getServices(Request $request): JsonResponse
     {
@@ -252,13 +255,20 @@ public function getProduits(Request $request): JsonResponse
     }
 
     /**
-     * Recherche globale dans produits et services
+     * Effectue une recherche globale optimisée dans les produits et services
      */
     public function globalSearch(Request $request): JsonResponse
     {
         try {
             $search = $request->get('q', '');
             $type = $request->get('type', 'all');
+            
+            if (empty($search) || strlen($search) < 2) {
+                return response()->json([
+                    'success' => true,
+                    'data' => ['products' => [], 'services' => []]
+                ]);
+            }
 
             $results = [];
 
@@ -273,8 +283,17 @@ public function getProduits(Request $request): JsonResponse
                               $q->where('nom', 'like', "%{$search}%");
                           });
                     })
-                    ->limit(10)
-                    ->get();
+                    // Tri par pertinence : nom d'abord, puis description
+                    ->orderByRaw("CASE 
+                        WHEN nom LIKE ? THEN 1 
+                        WHEN nom LIKE ? THEN 2 
+                        ELSE 3 END", ["{$search}", "%{$search}%"])
+                    ->limit(15)
+                    ->get()
+                    ->map(function($item) {
+                        $item->result_type = 'product';
+                        return $item;
+                    });
 
                 $results['products'] = $products;
             }
@@ -290,15 +309,25 @@ public function getProduits(Request $request): JsonResponse
                               $q->where('nom', 'like', "%{$search}%");
                           });
                     })
-                    ->limit(10)
-                    ->get();
+                    // Tri par pertinence : titre d'abord
+                    ->orderByRaw("CASE 
+                        WHEN titre LIKE ? THEN 1 
+                        WHEN titre LIKE ? THEN 2 
+                        ELSE 3 END", ["{$search}", "%{$search}%"])
+                    ->limit(15)
+                    ->get()
+                    ->map(function($item) {
+                        $item->result_type = 'service';
+                        return $item;
+                    });
 
                 $results['services'] = $services;
             }
 
             return response()->json([
                 'success' => true,
-                'data' => $results
+                'data' => $results,
+                'search_query' => $search
             ]);
 
         } catch (\Exception $e) {

@@ -55,6 +55,6 @@ class Parrainage extends Model
 
     public function produits()
     {
-        return $this->hasManyThrough(Produit::class, User::class, 'id', 'commercant_id', 'filleul_id', 'id');
+        return $this->hasManyThrough(Produit::class, User::class, 'id', 'user_id', 'filleul_id', 'id');
     }
 }

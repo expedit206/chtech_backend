@@ -13,6 +13,9 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    /**
+     * Enregistre un nouvel utilisateur (avec gestion optionnelle du parrainage)
+     */
     public function register(Request $request)
     {
         $request->validate([
@@ -61,6 +64,9 @@ class AuthController extends Controller
         ], 201);
     }
 
+    /**
+     * Authentifie un utilisateur par email ou téléphone
+     */
    public function login(Request $request)
     {
         $request->validate([
@@ -87,6 +93,9 @@ class AuthController extends Controller
     }
 
 
+    /**
+     * Génère un code de parrainage unique pour l'utilisateur
+     */
      public function generateCode(User $user)
     {
 
@@ -107,6 +116,9 @@ class AuthController extends Controller
 
 
     // Redirection vers Google (WEB uniquement)
+    /**
+     * Redirige l'utilisateur vers la page d'authentification Google
+     */
     public function redirectToGoogle(Request $request)
     {
         $driver = Socialite::driver('google')->stateless();
@@ -135,6 +147,9 @@ class AuthController extends Controller
     
 
     // Callback Google (WEB uniquement)
+    /**
+     * Traite le retour de l'authentification Google (Web)
+     */
     public function handleGoogleCallback(Request $request)
     {
         $action = 'login'; // Default
@@ -202,7 +217,7 @@ class AuthController extends Controller
 
             // REDIRECTION UNIQUEMENT POUR WEB
             $frontendUrl = env('FRONTEND_URL', 'http://localhost:4000') . '/auth/google/callback';
-            return redirect()->away($frontendUrl . '?token=' . urlencode($token) . '&user=' . urlencode(json_encode($user->load('commercant', 'niveaux_users.parrainageNiveau'))));
+            return redirect()->away($frontendUrl . '?token=' . urlencode($token) . '&user=' . urlencode(json_encode($user->load('niveaux_users.parrainageNiveau'))));
 
         } catch (\Exception $e) {
             // Gestion d'erreur pour WEB uniquement
@@ -213,6 +228,9 @@ class AuthController extends Controller
 
 
       // Déconnexion
+    /**
+     * Révoque le jeton d'accès actuel pour la déconnexion
+     */
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();

@@ -16,6 +16,9 @@ use App\Services\NotificationTemplateService;
 
 class ReventeController extends Controller
 {
+    /**
+     * Liste les demandes de revente envoyées et reçues par l'utilisateur
+     */
     public function index(Request $request)
     {
         $user = $request->user();
@@ -30,22 +33,22 @@ class ReventeController extends Controller
             ->orderBy('created_at', 'desc')->get();
 
         // Reventes reçues (où l'utilisateur est le propriétaire du produit)
-        $receivedReventes = Revente::with(['produit' => function ($query) use ($user) {
-            $query->whereHas('user', function ($query) use ($user) {
-                $query->where('id', $user->id);
-            });
-        }])->whereNotIn('id', function ($query) use ($user) {
-            $query->select('id')
-                  ->from('reventes')
-                  ->where('revendeur_id', $user->id);
-        })->orderBy('created_at', 'desc')->get();
+        $receivedReventes = Revente::with(['produit', 'revendeur'])
+            ->whereHas('produit', function ($query) use ($user) {
+                $query->where('user_id', $user->id);
+            })
+            ->where('revendeur_id', '!=', $user->id)
+            ->orderBy('created_at', 'desc')->get();
 
         return response()->json([
-            'sent_reventes' => $sentReventes->load('revendeur'),
-            'received_reventes' => $receivedReventes->load('revendeur'),
+            'sent_reventes' => $sentReventes,
+            'received_reventes' => $receivedReventes,
         ]);
     }
 
+    /**
+     * Crée une nouvelle demande de revente pour un produit spécifique
+     */
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -87,22 +90,19 @@ class ReventeController extends Controller
             try {
           
             // charger les relations utiles
-            $produit->loadMissing('user.user');
-            $owner = $produit->user->user ?? null;
+            $produit->loadMissing('user');
+            $owner = $produit->user;
 
-            // $revente->load(['produit', 'user']);
             if ($owner) {
                 $notificationService = app()->make(\App\Services\NotificationService::class);
                 $template = \App\Services\NotificationTemplateService::reventeRequested($revente);
 
                 $deviceToken = $owner->deviceTokens?->where('is_active', true)->pluck('device_token')->first() ?? null;
                 if ($deviceToken) {
-                    // signature attendue : (deviceToken, notification, data)
                     $notificationService->sendToDevice($deviceToken, $template['notification'], $template['data']);
-                    \Illuminate\Support\Facades\Log::error('Envoi notification reventeRequested reussi'.  $owner );
-                }else{
-                \Illuminate\Support\Facades\Log::error('pas de token');
-
+                    \Illuminate\Support\Facades\Log::info('Envoi notification reventeRequested réussi pour ' . $owner->email);
+                } else {
+                    \Illuminate\Support\Facades\Log::info('Pas de token pour ' . $owner->email);
                 }
             }
         } catch (\Exception $e) {
@@ -114,6 +114,9 @@ class ReventeController extends Controller
     }
 //verifié si il a deja collaboré le produit
 
+    /**
+     * Vérifie si l'utilisateur a déjà une demande de revente active/validée pour un produit
+     */
     public function status(Request $request , $id){
            $user = $request->user();
          // Assurez-vous que l'utilisateur a un profil user
@@ -132,6 +135,9 @@ class ReventeController extends Controller
         return response()->json(['revendu'=>false]);
 
     }
+    /**
+     * Met à jour le statut d'une revente (valider/refuser) et clone le produit si validé
+     */
     public function update(Request $request, $id)
     {
         $request->validate([
@@ -175,6 +181,9 @@ class ReventeController extends Controller
     }
 
 
+    /**
+     * Récupère le nombre de demandes de revente non lues pour les notifications
+     */
         public function getUnreadCount(Request $request)
     {
         try {
@@ -230,13 +239,18 @@ class ReventeController extends Controller
     /**
      * Marquer toutes les reventes comme lues
      */
+    /**
+     * Marque toutes les demandes de revente comme lues
+     */
     public function markAllAsRead(Request $request)
     {
         try {
             $userId = Auth::id();
             
-            // Marquer toutes les reventes non lues comme lues
-            Revente::where('revendeur_id', $userId)
+            // Marquer comme lues les reventes reçues par l'utilisateur
+            Revente::whereHas('produit', function($q) use ($userId) {
+                    $q->where('user_id', $userId);
+                })
                 ->where('is_read', false)
                 ->update([
                     'is_read' => true,

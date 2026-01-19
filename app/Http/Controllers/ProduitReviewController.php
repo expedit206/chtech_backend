@@ -16,6 +16,9 @@ class ProduitReviewController extends Controller
        /**
      * Soumettre un nouvel avis pour un produit
      */
+    /**
+     * Enregistre un nouvel avis client pour un produit et recalcule sa note moyenne
+     */
     public function storeProduitReview(Request $request, $productId): JsonResponse
     {
         try {
@@ -78,6 +81,9 @@ class ProduitReviewController extends Controller
 
     /**
      * Récupérer les avis d'un produit
+     */
+    /**
+     * Liste les avis paginés pour un produit spécifique
      */
     public function index($productId, Request $request): JsonResponse
     {

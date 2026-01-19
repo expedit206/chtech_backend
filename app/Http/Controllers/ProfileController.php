@@ -31,15 +31,15 @@ class ProfileController extends Controller
             'parrainage_code' => $user->parrainage_code,
             'parrain_id' => $user->parrain_id,
             'created_at' => $user->created_at,
-            'role' => $user->role ?? 'user', // Ajoutez une colonne 'role' dans users si nécessaire
+            'role' => $user->role ?? 'user',
             'parrainages' => $this->getParrainages($user->id),
             'total_gains' => $this->calculateTotalGains($user->id),
+            'statistiques' => [
+                'produits_count' => $user->produits()->count(),
+                'services_count' => $user->services()->count(),
+                'total_views' => $user->produits()->sum('views_count') ?? 0,
+            ]
         ];
-
-        // Si l'utilisateur est un commerçant, ajouter les détails commerçant
-        if ($user->commercant) {
-            $profileData['commercant'] = $this->getCommercantDetails($user->commercant);
-        }
 
         return response()->json($profileData);
     }
@@ -49,50 +49,32 @@ class ProfileController extends Controller
      */
     protected function getParrainages($userId)
     {
-        return User::where('parrain_id', $userId)->with('commercant')->get()->map(function ($filleul) {
+        return User::where('parrain_id', $userId)->get()->map(function ($filleul) {
             return [
                 'filleul_nom' => $filleul->nom,
                 'date_inscription' => $filleul->created_at,
-                'est_commercant' => $filleul->commercant ? true : false,
+                'has_products' => $filleul->produits()->exists(),
             ];
         })->all();
     }
 
-    /**
-     * Récupérer les détails du commerçant
-     */
-    protected function getCommercantDetails($commercant)
-    {
-        return [
-            'id' => $commercant->id,
-            'nom' => $commercant->nom,
-            'ville' => $commercant->ville,
-            'email' => $commercant->email,
-            'telephone' => $commercant->telephone,
-            'photo_url' => $commercant->photo_url,
-            'produits_count' => $commercant->produits()->count(),
-            'statistiques' => [
-                'total_views' => $commercant->produits()->sum('views_count') ?? 0,
-                'popular_products' => $commercant->produits()->count(),
-            ],
-        ];
-    }
 
-    /**
-     * Calculer les gains totaux de l'utilisateur à partir des parrainages
-     */
+
     protected function calculateTotalGains($userId)
     {
-        $commercantsParraines = User::where('parrain_id', $userId)->whereHas('commercant')->get();
+        $filleulsActifs = User::where('parrain_id', $userId)->whereHas('produits')->get();
         $gains = 0;
 
-        foreach ($commercantsParraines as $commercant) {
-            $gains += 500; // Bonus de 500 FCFA par commerçant actif
+        foreach ($filleulsActifs as $filleul) {
+            $gains += 500; // Bonus de 500 FCFA par filleul actif (ayant des produits)
         }
 
         return $gains;
     }
 
+    /**
+     * Met à jour le mot de passe de l'utilisateur après vérification du mot de passe actuel
+     */
     public function updatePassword(Request $request)
     {
         // Validation des champs
@@ -148,6 +130,9 @@ class ProfileController extends Controller
     // use Illuminate\Http\Request;
     // use Intervention\Image\Laravel\Facades\Image;
 
+    /**
+     * Met à jour la photo de profil, compresse l'image et supprime l'ancienne
+     */
     public function updateProfilePhoto(Request $request)
     {
         $user = $request->user();
@@ -193,6 +178,9 @@ class ProfileController extends Controller
 
 
 
+    /**
+     * Récupère les informations publiques d'un profil utilisateur
+     */
     public function publicProfile($id)
     {
         $user = User::findOrFail($id);
@@ -204,19 +192,23 @@ class ProfileController extends Controller
             'premium' => $user->premium,
             'created_at'=>$user->created_at,
             'subscription_ends_at' => $user->subscription_ends_at,
-            'commercant' => $user->commercant??null,
+            'produits_count' => $user->produits()->count(),
+            'services_count' => $user->services()->count(),
             'ville' => $user->ville,
             'telephone' => $user->telephone,
         ]);
     }
 
+    /**
+     * Met à jour les informations du profil de l'utilisateur connecté
+     */
     public function updateProfile(Request $request)
     {
 
         $user = $request->user();
 $user->update($request->all());
       return response()->json([
-            'user' => $user->load('commercant')
+            'user' => $user->fresh()
         ], 200);
   
     }

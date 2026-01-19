@@ -11,6 +11,9 @@ use Illuminate\Support\Facades\Auth;
 
 class OfferController extends Controller
 {
+    /**
+     * Liste les offres de jetons créées par l'utilisateur authentifié
+     */
     public function myOffers()
     {
         $user = Auth::user();
@@ -22,6 +25,9 @@ class OfferController extends Controller
         return response()->json(['data' => $offers, 'message' => 'Offres récupérées avec succès'], 200);
     }
 
+    /**
+     * Crée une nouvelle offre de vente de jetons après vérification du solde utilisateur
+     */
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -59,6 +65,9 @@ $nombre_jetons = $validated['nombre_jetons'];
     }
 
 
+    /**
+     * Met à jour les détails d'une offre de jetons existante
+     */
     public function updateOffer(Request $request, $id)
     {
         $user = Auth::user();
@@ -99,6 +108,9 @@ $nombre_jetons = $validated['nombre_jetons'];
 
     /**
      * Supprimer une offre.
+     */
+    /**
+     * Supprime une offre de jetons si elle n'a pas encore été l'objet d'une transaction confirmée
      */
     public function destroyOffer($id)
     {

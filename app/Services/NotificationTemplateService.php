@@ -50,11 +50,10 @@ class NotificationTemplateService
     public static function reventeRequested($revente)
     {
         $productName = $revente->produit->nom ?? $revente->produit->title ?? 'produit';
-        $commercantName = $revente->commercant->nom
-            ?? ($revente->commercant->user->nom ?? 'Commerçant');
+        $revendeurName = $revente->revendeur->nom ?? 'Utilisateur';
         $price = isset($revente->prix_revente) ? number_format($revente->prix_revente, 0, ',', ' ') . ' FCFA' : '';
 
-        $content = "Nouvelle demande de revente : {$commercantName} propose de revendre « {$productName} » {$price}";
+        $content = "Nouvelle demande de revente : {$revendeurName} propose de revendre « {$productName} » {$price}";
         // Ajouter les points de suspension seulement si la longueur dépasse 100 caractères
         $body = mb_strlen($content) > 100 ? mb_substr($content, 0, 100) . '...' : $content;
 
@@ -65,9 +64,6 @@ class NotificationTemplateService
             ],
             'data' => [
                 'type' => 'revente_requested',
-                // 'revente_id' => $revente->id,
-                // 'produit_id' => $revente->produit_id ?? null,
-                // 'commercant_id' => $revente->commercant_id ?? null,
                 'statut' => $revente->statut ?? 'en_attente',
                 'url' => url("/reventes/{$revente->id}"),
             ],

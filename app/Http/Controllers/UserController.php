@@ -16,6 +16,9 @@ class UserController extends Controller
 {
 
     // Mettre à jour les notifications
+    /**
+     * Met à jour les préférences de notification de l'utilisateur (email, sms)
+     */
     public function updateNotifications(Request $request)
     {
         $user = $request->user();
@@ -28,28 +31,22 @@ class UserController extends Controller
     }
 
     // Compteurs pour badges
+    /**
+     * Calcule le nombre d'éléments non lus pour les badges (messages, reventes)
+     */
     public function badges(Request $request)
     {
         $user = $request->user();
-        $commercant = $user->commercant;
         
         $unreadMessagesCount = Message::where('receiver_id', $user->id)
             ->where('is_read', false)
             ->count();
             
-        if (!$commercant) {
-            return response()->json([
-                'reventes_pending' => 0,
-                'unread_messages' => $unreadMessagesCount,
-            ]);
-        }
-        
-        $reventesPendingCount = Revente::where(function ($query) use ($commercant) {
-            $query->where('commercant_id', $commercant->id)
-                ->orWhereHas('produit.commercant', function ($query) use ($commercant) {
-                    $query->where('id', $commercant->id);
-                });
-        })->where('statut', 'en_attente')
+        // Reventes en attente sur les produits de l'utilisateur (actions à faire)
+        $reventesPendingCount = Revente::whereHas('produit', function ($query) use ($user) {
+                $query->where('user_id', $user->id);
+            })
+            ->where('statut', 'en_attente')
             ->count();
        
         return response()->json([
@@ -59,6 +56,9 @@ class UserController extends Controller
     }
 
     // Récupérer le profil utilisateur
+    /**
+     * Récupère le profil détaillé de l'utilisateur avec ses statistiques (conversations, produits)
+     */
     public function profile(Request $request)
     {
         $user = $request->user();

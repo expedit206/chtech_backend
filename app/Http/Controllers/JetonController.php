@@ -13,6 +13,9 @@ use Illuminate\Support\Facades\DB;
 
 class JetonController extends Controller
 {
+    /**
+     * Initialise le contrôleur avec la clé API NotchPay
+     */
     public function __construct()
     {
         NotchPay::setApiKey(env('NOTCHPAY_API_KEY'));
@@ -42,7 +45,7 @@ class JetonController extends Controller
     }
 
     /**
-     * Achat sur le marché
+     * Initie l'achat d'une offre de jetons sur le marché (paiement NotchPay)
      */
     public function buy($offer_id, Request $request)
     {
@@ -138,7 +141,7 @@ class JetonController extends Controller
     }
 
     /**
-     * Achat direct depuis la plateforme
+     * Initie l'achat direct de jetons auprès de la plateforme
      */
     public function purchaseFromPlatform(Request $request)
     {
@@ -202,7 +205,7 @@ class JetonController extends Controller
     }
 
     /**
-     * Callback NotchPay - TRAITEMENT COMPLET
+     * Traite le retour de paiement (callback) NotchPay et crédite les jetons
      */
 public function handleCallback(Request $request)
 {
@@ -352,9 +355,9 @@ private function redirectToFrontend($status, JetonTransaction $transaction, $ref
     /**
      * Vérifier statut transaction (pour polling frontend)
      */
- /**
- * Vérifier le statut d'une transaction avec NotchPay
- */
+    /**
+     * Vérifie manuellement le statut d'une transaction via l'API NotchPay
+     */
 public function checkTransactionStatus($transaction_id)
 {
     try {
@@ -439,7 +442,7 @@ public function checkTransactionStatus($transaction_id)
 }
 
     /**
-     * Historique des transactions de l'utilisateur
+     * Liste l'historique des transactions de jetons (achats et ventes) de l'utilisateur
      */
     public function userTransactions(Request $request)
     {

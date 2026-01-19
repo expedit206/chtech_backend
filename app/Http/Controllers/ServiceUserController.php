@@ -12,6 +12,9 @@ use Intervention\Image\Laravel\Facades\Image;
 class ServiceUserController extends Controller
 {
     // Services de l'user connecté
+    /**
+     * Récupère la liste des services créés par l'utilisateur actuellement connecté
+     */
     public function mesServices()
     {
         try {
@@ -36,6 +39,9 @@ class ServiceUserController extends Controller
     }
 
     // Créer un nouveau service
+    /**
+     * Enregistre un nouveau service avec images compressées et initialisation des compteurs
+     */
     public function store(Request $request)
     {
         try {
@@ -100,7 +106,7 @@ class ServiceUserController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $service->load(['category', 'user']),
+                'service' => $service->load(['category', 'user']),
                 'message' => 'Service créé avec succès'
             ], 201);
 
@@ -114,6 +120,9 @@ class ServiceUserController extends Controller
     }
 
     // Mettre à jour un service
+    /**
+     * Met à jour un service existant (infos et photos) avec gestion de la suppression des anciennes images
+     */
     public function update(Request $request, $id)
     {
 
@@ -219,6 +228,9 @@ class ServiceUserController extends Controller
     }
 
     // Supprimer un service
+    /**
+     * Supprime définitivement un service et les fichiers images associés
+     */
     public function destroy($id)
     {
         try {
@@ -285,6 +297,9 @@ class ServiceUserController extends Controller
     }
 
     // Toggle disponibilité
+    /**
+     * Alterne le statut de disponibilité (disponible/indisponible) d'un service
+     */
     public function toggleDisponibilite($id)
     {
         try {

@@ -112,7 +112,10 @@ class ChatController extends Controller
     }
 
     /**
-     * Récupérer les messages d'une conversation spécifique
+     * Récupère les messages d'une conversation spécifique (historique paginé)
+     */
+    /**
+     * Récupère les messages d'une conversation spécifique (historique paginé)
      */
     public function index($receiverId, Request $request)
     {
@@ -125,22 +128,74 @@ class ChatController extends Controller
         $offset = $request->query('offset', 0);
         $limit = 30;
 
-        // Récupérer les 30 derniers messages dans l'ordre décroissant, puis les trier en ordre ascendant
-        $messages = Message::where(function ($query) use ($user, $receiverId) {
+        // Récupérer les messages privés
+        $messagesQuery = Message::where(function ($query) use ($user, $receiverId) {
             $query->where('sender_id', $user->id)->where('receiver_id', $receiverId)
                 ->orWhere('sender_id', $receiverId)->where('receiver_id', $user->id);
         })
-            ->with(['sender', 'receiver', 'product'])
-            ->latest('created_at')
+            ->with(['sender', 'receiver', 'product']);
+        
+        $privateMessages = $messagesQuery->latest('created_at')
             ->skip($offset)
             ->take($limit + 1)
             ->get();
 
-        $hasMore = $messages->count() > $limit;
-        $messages = $messages->take($limit)->sortBy('created_at');
+        // Récupérer les messages de diffusion si le partenaire est un admin ou le service client
+        // On suppose que l'émetteur des broadcasts est 'receiverId'
+        $broadcastMessages = collect([]);
+        $receiver = User::find($receiverId);
+        
+        if ($receiver && ($receiver->role === 'admin' || $receiver->email === 'aaa@aaa.com')) {
+             // On récupère les broadcasts actifs
+             // Idéalement, on filtre ceux créés après l'inscription de l'utilisateur, etc.
+             $broadcasts = \App\Models\BroadcastMessage::where('sender_id', $receiverId)
+                 ->where('is_active', true)
+                 ->latest('created_at')
+                 ->take($limit)
+                 ->get();
+            
+            // Transformer les broadcasts en format compatible Message
+            $formattedBroadcasts = $broadcasts->map(function($b) use ($receiver, $user) {
+                // Créer un objet fictif compatible avec la structure Message
+                // On utilise un ID négatif ou un indicateur pour dire que c'est un broadcast (optionnel)
+                // Pour le front, c'est juste un message reçu.
+                $msg = new Message();
+                $msg->id = 'broadcast_' . $b->id; // ID string pour éviter collisions
+                $msg->sender_id = $b->sender_id;
+                $msg->receiver_id = $user->id; // Virtuellement pour nous
+                $msg->content = $b->content;
+                $msg->type = $b->type;
+                $msg->is_read = true; // On considère comme lu car pas de tracking précis
+                $msg->created_at = $b->created_at;
+                $msg->updated_at = $b->updated_at;
+                
+                // Relations manuelles
+                $msg->setRelation('sender', $receiver);
+                $msg->setRelation('receiver', $user);
+                $msg->product = null;
+                
+                return $msg;
+            });
+            
+            $broadcastMessages = $formattedBroadcasts;
+        }
+
+        // Fusionner et trier
+        $allMessages = $privateMessages->concat($broadcastMessages)
+            ->sortByDesc('created_at')
+            ->values();
+            
+        // Pagination manuelle après fusion (approximation)
+        // Note: La pagination est tricky avec deux sources. 
+        // Si on a beaucoup de broadcasts, ils risquent d'inonder.
+        // Pour l'instant on renvoie tout ce qu'on a trouvé (limit private + limit broadcast)
+        // Le front triera.
+        
+        $hasMore = $privateMessages->count() > $limit;
+        $finalMessages = $allMessages->take($limit)->sortBy('created_at')->values();
 
         return response()->json([
-            'messages' => $messages->values(),
+            'messages' => $finalMessages,
             'hasMore' => $hasMore,
             'user' => User::find($receiverId),
         ]);
@@ -225,6 +280,9 @@ class ChatController extends Controller
         ], 201);
     }
     
+    /**
+     * Marque tous les messages reçus par l'utilisateur comme lus
+     */
     public function markAllAsRead(Request $request)
     {
         try {
@@ -261,6 +319,9 @@ class ChatController extends Controller
     }
     
 
+    /**
+     * Récupère le nombre total de messages non lus pour l'utilisateur
+     */
       public function getUnreadCount(Request $request)
     {
         try {
@@ -292,6 +353,9 @@ class ChatController extends Controller
     }
 
     
+    /**
+     * Met à jour le compteur de badges de messages dans la base de données
+     */
     private function updateMessageBadge($userId, $count)
     {
         $badge = BadgeUnread::firstOrCreate(

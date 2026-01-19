@@ -8,13 +8,19 @@ use Illuminate\Support\Facades\Auth;
 
 class StatsController extends Controller
 {
+    /**
+     * Récupère les statistiques globales de l'utilisateur (parrainages, revenus, connexion)
+     */
     public function index(Request $request)
     {
         $user = Auth::user();
 
-        // Calcul du nombre de parrainages actifs (filleuls commerçants)
+        // Calcul du nombre de parrainages actifs (filleuls ayant des produits)
         $parrainages = User::where('parrain_id', $user->id)
-            ->whereHas('commercant')
+            ->where(function($q) {
+                $q->whereHas('produits')
+                  ->orWhereHas('services');
+            })
             ->count();
 
         // Revenus basés sur les jetons attribués via le parrainage (exemple)

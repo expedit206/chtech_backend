@@ -20,6 +20,9 @@ class InteractionController extends Controller
 
         protected $interactionService;
 
+    /**
+     * Initialise le contrôleur avec le service d'interaction
+     */
     public function __construct(InteractionService $interactionService)
     {
         $this->interactionService = $interactionService;
@@ -87,6 +90,9 @@ class InteractionController extends Controller
         }
     }
 
+    /**
+     * Gère la réduction du budget de clics d'une promotion active
+     */
        private function handlePromotionClick($produitId, $userId = null)
     {
         // Vérifier si le produit a une promotion active
@@ -170,6 +176,9 @@ class InteractionController extends Controller
     }
 
 
+    /**
+     * Récupère les compteurs (clics, favoris, etc.) pour un produit spécifique
+     */
 public function getProductInteraction($id)
 {
     $userId = Auth::id();
@@ -208,6 +217,9 @@ public function getProductInteraction($id)
 
     /**
      * Mettre à jour les compteurs d'interaction sur le contenu
+     */
+    /**
+     * Incrémente les compteurs d'interaction globaux pour un produit ou service
      */
     private function updateContentInteractionCount($contentId, $contentType, $interactionType)
     {

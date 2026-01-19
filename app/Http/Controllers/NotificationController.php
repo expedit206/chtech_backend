@@ -21,6 +21,9 @@ class NotificationController extends Controller
     /**
      * Stocker un nouveau device token
      */
+    /**
+     * Enregistre ou met à jour un jeton de périphérique (FCM) pour les notifications push
+     */
     public function store(Request $request)
     {
         $request->validate([
@@ -73,6 +76,9 @@ class NotificationController extends Controller
     /**
      * Envoyer une notification de test
      */
+    /**
+     * Envoie une notification push de test au périphérique spécifié
+     */
     public function TestNotification(Request $request)
     {
         $request->validate([
@@ -82,7 +88,7 @@ class NotificationController extends Controller
         $notification = [
             'title' => 'Notification de Test',
             'body' => 'Ceci est une notification de test depuis Laravel! 🎉',
-            'icon' => '/images/storage/commercant/logos/1759669437_favi_logo.jpg',
+            'icon' => asset('storage/profile_photos/default_icon.png'),
             'click_action' => url('/login')
         ];
 
@@ -105,6 +111,9 @@ class NotificationController extends Controller
     /**
      * Récupérer les tokens de l'utilisateur
      */
+    /**
+     * Liste tous les jetons de périphérique actifs pour l'utilisateur authentifié
+     */
     public function getUserTokens()
     {
         $user = Auth::user();
@@ -117,6 +126,9 @@ class NotificationController extends Controller
 
     /**
      * Désactiver un token
+     */
+    /**
+     * Désactive un jeton de périphérique spécifique
      */
     public function destroy($id)
     {

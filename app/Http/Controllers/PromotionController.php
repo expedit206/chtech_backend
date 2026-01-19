@@ -13,6 +13,9 @@ class PromotionController extends Controller
     private const COST_PER_CLICK = 0.2; // 0.2 jetons par clic
     
     // Créer une promotion simplifiée
+    /**
+     * Crée une nouvelle campagne de promotion (boost au clic) pour un produit
+     */
     public function create(Request $request)
     {
        
@@ -54,7 +57,7 @@ class PromotionController extends Controller
                 'status' => 'active',
                 'started_at' => now()
             ]);
-            
+             $produit->update(['is_promoted'=>true]);
             // Marquer le produit comme promu
             $produit->update([
                 'is_promoted' => true
@@ -76,6 +79,9 @@ class PromotionController extends Controller
     }
     
     // Arrêter une promotion
+    /**
+     * Arrête une promotion active et rembourse les jetons correspondant aux clics restants
+     */
     public function stop($promotionId)
     {
         $promotion = Promotion::findOrFail($promotionId);
@@ -124,6 +130,9 @@ class PromotionController extends Controller
     }
     
     // Récupérer la promotion active
+    /**
+     * Récupère la promotion active pour un produit spécifique
+     */
     public function getActive($productId)
     {
         $produit = Produit::findOrFail($productId);

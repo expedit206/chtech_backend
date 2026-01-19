@@ -113,6 +113,9 @@ class BadgeController extends Controller
     /**
      * Mettre à jour le compteur de badge pour un utilisateur
      */
+    /**
+     * Met à jour physiquement les compteurs de badges dans la base de données
+     */
     private function updateBadgeCount($userId)
     {
         // Compter les messages non lus
@@ -149,6 +152,9 @@ class BadgeController extends Controller
     /**
      * Synchroniser tous les badges
      */
+    /**
+     * Synchronise tous les types de badges pour un utilisateur
+     */
     private function syncAllBadges($userId)
     {
         $this->updateBadgeCount($userId);
@@ -156,6 +162,9 @@ class BadgeController extends Controller
     
     /**
      * Marquer tous les messages comme lus
+     */
+    /**
+     * Marque tous les messages non lus d'un utilisateur comme lus
      */
     private function markMessagesAsRead($userId)
     {
@@ -170,6 +179,9 @@ class BadgeController extends Controller
     /**
      * Marquer toutes les reventes comme lues
      */
+    /**
+     * Marque toutes les reventes reçues d'un utilisateur comme lues
+     */
     private function markReventesAsRead($userId)
     {
         Revente::where('revendeur_id', $userId)
@@ -181,6 +193,9 @@ class BadgeController extends Controller
     
     /**
      * Marquer tous les parrainages comme lus
+     */
+    /**
+     * Marque toutes les notifications de parrainage comme lues
      */
     private function markParrainagesAsRead($userId)
     {

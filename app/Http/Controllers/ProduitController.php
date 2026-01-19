@@ -26,34 +26,50 @@ class ProduitController extends Controller
 
 
 
-    public function show($id): JsonResponse
+    /**
+     * Affiche les détails d'un produit spécifique (gère les accès publics et authentifiés)
+     */
+    public function show($id, Request $request): JsonResponse
     {
         try {
+            // Récupérer l'utilisateur via le guard sanctum sans bloquer si absent
+            $user = $request->user('sanctum');
+
             $produit = Produit::with([
                 'user:id,nom,email,telephone,photo,created_at',
                 'category:id,nom',
-                'reviews.user:id,nom,photo'
+                'reviews.user:id,nom,photo',
+                'counts',
+                'boosts' => function($q) {
+                    $q->where('statut', 'actif')->where('end_date', '>', now());
+                }
             ])
             ->findOrFail($id);
 
-            // Incrémenter le compteur de vues
-            // $produit->increment('views_count');
-
-            // Produits similaires (même catégorie)
+            // Produits similaires (même catégorie, exclure le produit actuel)
             $similarProduits = Produit::with(['user', 'category'])
                 ->where('category_id', $produit->category_id)
                 ->where('id', '!=', $produit->id)
+                ->where('est_actif', true)
                 ->limit(6)
                 ->get();
+
+            // Vérifier si favori (seulement si utilisateur connecté)
+            $isFavorited = false;
+            if ($user) {
+                $isFavorited = \App\Models\ProduitInteraction::where('produit_id', $id)
+                    ->where('user_id', $user->id)
+                    ->where('type', 'favori')
+                    ->exists();
+            }
 
             return response()->json([
                 'success' => true,
                 'data' => [
                     'produit' => $produit,
-                    'isFavorited' => $produit->isFavorited(),
+                    'isFavorited' => $isFavorited,
                     'similar_produits' => $similarProduits,
                     'statistics' => [
-                        'average_rating' => $produit->note_moyenne,
                         'total_reviews' => $produit->nombre_avis
                     ]
                 ]
@@ -62,28 +78,14 @@ class ProduitController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
-                'error' => $e->getMessage()
+                'message' => "Produit non trouvé ou erreur : " . $e->getMessage()
             ], 404);
         }
     }
 
-
-public function publicShow($id, Request $request)
-    {
-        // Récupérer le produit sans dépendre de l'utilisateur
-        $produit = Produit::with(['user', 'category'])
-            ->with('counts')
-            ->findOrFail($id);
-
-        // Ajouter uniquement les propriétés publiques
-        $produit->user->rating = $produit->user->average_rating; // Attribut calculé
-        $produit['boosted_until'] = $produit->boosts->first()?->end_date;
-        $produit->is_favorited_by = false; // Par défaut pour les non-connectés
-
-        return response()->json(['produit' => $produit->load('counts')]);
-    }
-
+    /**
+     * Enregistre une vue pour un produit (visiteur public)
+     */
    public function publicRecordView(Request $request)
     {
         $validated = $request->validate([
@@ -102,6 +104,9 @@ public function publicShow($id, Request $request)
         return response()->json(['message' => 'Vue enregistrée']);
     }
 
+    /**
+     * Enregistre ou met à jour une vue pour un produit (utilisateur connecté)
+     */
     public function recordView(Request $request)
     {
 

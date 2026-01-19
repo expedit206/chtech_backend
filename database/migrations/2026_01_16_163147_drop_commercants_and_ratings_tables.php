@@ -9,21 +9,25 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up()
+    public function up(): void
     {
+        Schema::dropIfExists('commercant_ratings');
+        Schema::dropIfExists('commercants');
+    }
+
+    public function down(): void
+    {
+        Schema::create('commercants', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->string('nom');
+            $table->timestamps();
+        });
+
         Schema::create('commercant_ratings', function (Blueprint $table) {
             $table->id();
             $table->foreignUuid('commercant_id')->constrained()->onDelete('cascade');
-            $table->foreignUuid('user_id')->constrained()->onDelete('cascade');
-            $table->integer('rating')->unsigned()->default(0); // Note entre 0 et 5
+            $table->integer('rating');
             $table->timestamps();
         });
-    }
-    /**
-     * Reverse the migrations.
-     */
-    public function down(): void
-    {
-        Schema::dropIfExists('commercant_ratings');
     }
 };

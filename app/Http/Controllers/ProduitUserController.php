@@ -12,12 +12,15 @@ use Intervention\Image\Laravel\Facades\Image;
 class ProduitUserController extends Controller
 {
 
+    /**
+     * Liste les produits créés par l'utilisateur connecté avec statistiques (favoris, vues)
+     */
      public function produits(Request $request)
     {
         $user = $request->user();
         // return response()->json($);
         if (!$user) {
-            return response()->json(['message' => 'Accès réservé aux commerçants'], 403);
+            return response()->json(['message' => 'Accès réservé aux utilisateurs authentifiés'], 403);
         }
 
         $produits = Produit::where('user_id', $user->id)
@@ -31,6 +34,9 @@ class ProduitUserController extends Controller
     }
     
 
+    /**
+     * Enregistre un nouveau produit, compresse ses photos et initialise son compteur d'interactions
+     */
      public function storeProduit(Request $request)
     {
         $user = $request->user();
@@ -96,6 +102,9 @@ class ProduitUserController extends Controller
     }
 
 
+    /**
+     * Supprime un produit et tous les fichiers images physiques associés
+     */
 public function destroyProduit(Request $request, $id)
 {
     $user = $request->user();
@@ -120,6 +129,9 @@ public function destroyProduit(Request $request, $id)
     return response()->json(['message' => 'Produit supprimé avec succès'], 200);
 }
 
+    /**
+     * Met à jour les informations et l'inventaire photos d'un produit existant
+     */
   public function updateProduit(Request $request, $id)
     {
         $user = $request->user();
