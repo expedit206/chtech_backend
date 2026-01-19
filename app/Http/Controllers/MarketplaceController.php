@@ -22,7 +22,7 @@ public function getProduits(Request $request): JsonResponse
         ->where('quantite', '>', 0);
 
     // PERSONNALISATION SIMPLE SI PAS DE FILTRES EXPLICITES
-    $hasExplicitFilters = $request->has('categoryId') || $request->has('    ') || $request->has('ville');
+    $hasExplicitFilters = $request->has('categoryId') || $request->has('search') || $request->has('ville');
     
 
     
@@ -104,7 +104,7 @@ public function getProduits(Request $request): JsonResponse
             ;
         }
 
-        if ($request->has(' ')) {
+        if ($request->has('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('nom', 'like', "%{$search}%")
