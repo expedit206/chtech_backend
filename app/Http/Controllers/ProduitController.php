@@ -40,6 +40,7 @@ class ProduitController extends Controller
                 'category:id,nom',
                 'reviews.user:id,nom,photo',
                 'counts',
+                'commercant', // Eager load partner info
                 'boosts' => function($q) {
                     $q->where('statut', 'actif')->where('end_date', '>', now());
                 }

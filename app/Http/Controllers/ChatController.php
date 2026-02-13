@@ -215,10 +215,11 @@ class ChatController extends Controller
     ], 404);
 
         $validated = $request->validate([
-            'type' => 'nullable|string|in:text,audio,image',
+            'type' => 'nullable|string|in:text,audio,image,video',
             'content' => 'nullable|string|max:1000',
             'audio' => 'nullable|file|mimes:mp3,wav,ogg,webm|max:10240',
             'image' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:5120',
+            'video' => 'nullable|file|mimes:mp4,mov,avi,wmv|max:20480', // Max 20MB
             'product_id' => 'nullable|exists:produits,id',
         ]);
 
@@ -229,23 +230,36 @@ class ChatController extends Controller
         $message->type = $validated['type'] ?? 'text';
 
         // Gestion des types
+        $attachmentUrl = null;
+
         if ($request->hasFile('audio')) {
             $file = $request->file('audio');
             $filename = time() . '_' . $file->getClientOriginalName();
             $path = public_path('storage/messages/audio/' . $filename);
             $file->move(public_path('storage/messages/audio'), $filename);
-            $message->content = asset('storage/messages/audio/' . $filename);
+            $attachmentUrl = asset('storage/messages/audio/' . $filename);
             $message->type = 'audio';
         } elseif ($request->hasFile('image')) {
             $file = $request->file('image');
             $filename = time() . '_' . $file->getClientOriginalName();
             $path = public_path('storage/messages/images/' . $filename);
             $file->move(public_path('storage/messages/images'), $filename);
-            $message->content = asset('storage/messages/images/' . $filename);
+            $attachmentUrl = asset('storage/messages/images/' . $filename);
             $message->type = 'image';
-        } else {
-            $message->content = $validated['content'] ?? '';
+        } elseif ($request->hasFile('video')) {
+            $file = $request->file('video');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $path = public_path('storage/messages/videos/' . $filename);
+            if (!file_exists(public_path('storage/messages/videos'))) {
+                mkdir(public_path('storage/messages/videos'), 0777, true);
+            }
+            $file->move(public_path('storage/messages/videos'), $filename);
+            $attachmentUrl = asset('storage/messages/videos/' . $filename);
+            $message->type = 'video';
         }
+
+        $message->attachment_url = $attachmentUrl;
+        $message->content = $validated['content'] ?? null;
 
         $message->save();
         $message->load('sender', 'receiver', 'product');

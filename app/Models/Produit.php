@@ -43,7 +43,8 @@ class Produit extends Model
         'collaboratif',
         'marge_revente_min',
         'condition',
-        'original_user_id'
+        'original_user_id',
+        'commercant_id',
     ];
     // protected $appends = ['favorites_count', 'views_count'];
     
@@ -54,6 +55,11 @@ class Produit extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function commercant()
+    {
+        return $this->belongsTo(Commercant::class);
     }
 
         

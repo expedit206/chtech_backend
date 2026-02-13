@@ -10,7 +10,7 @@ class Message extends Model
 {
 
 
-    protected $fillable = ['sender_id','type', 'receiver_id', 'product_id', 'content'];
+    protected $fillable = ['sender_id','type', 'receiver_id', 'product_id', 'content', 'attachment_url'];
     // table
     protected $table = 'messages';
     

@@ -61,6 +61,7 @@ Route::get('/services/categories', [CategoryServiceController::class, 'index']);
 Route::prefix('blog')->group(function () {
     Route::get('/posts', [\App\Http\Controllers\BlogController::class, 'index']);
     Route::get('/posts/{slug}', [\App\Http\Controllers\BlogController::class, 'show']);
+    Route::get('/posts/{slug}/comments', [\App\Http\Controllers\BlogController::class, 'getComments']);
 });
 
 // Public Product/Service Access
@@ -223,6 +224,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/service-reviews/{reviewId}', [ServiceReviewController::class, 'destroy']);
     Route::post('/service-reviews/{reviewId}/respond', [ServiceReviewController::class, 'respond']);
 
+    // Blog Interactions
+    Route::prefix('blog')->group(function () {
+        Route::post('/posts/{slug}/comments', [\App\Http\Controllers\BlogController::class, 'storeComment']);
+        Route::post('/posts/{slug}/like', [\App\Http\Controllers\BlogController::class, 'toggleLike']);
+    });
+
     /*
     |--------------------------------------------------------------------------
     | Admin Routes
@@ -277,6 +284,16 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/posts/{id}', [\App\Http\Controllers\BlogController::class, 'update']);
             Route::delete('/posts/{id}', [\App\Http\Controllers\BlogController::class, 'destroy']);
             Route::patch('/posts/{id}/toggle-publish', [\App\Http\Controllers\BlogController::class, 'togglePublish']);
+            Route::delete('/comments/{id}', [\App\Http\Controllers\BlogController::class, 'deleteComment']);
+        });
+
+        // Partenaires
+        Route::prefix('partenaires')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\PartenaireController::class, 'index']);
+            Route::post('/', [\App\Http\Controllers\Admin\PartenaireController::class, 'store']);
+            Route::get('/{id}', [\App\Http\Controllers\Admin\PartenaireController::class, 'show']);
+            Route::put('/{id}', [\App\Http\Controllers\Admin\PartenaireController::class, 'update']);
+            Route::delete('/{id}', [\App\Http\Controllers\Admin\PartenaireController::class, 'destroy']);
         });
     });
 

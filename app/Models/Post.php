@@ -13,6 +13,7 @@ class Post extends Model
         'excerpt',
         'content',
         'image',
+        'video',
         'is_published',
         'published_at',
         'views_count',
@@ -28,5 +29,20 @@ class Post extends Model
     public function author()
     {
         return $this->belongsTo(User::class, 'author_id');
+    }
+
+    public function comments()
+    {
+        return $this->hasMany(BlogComment::class);
+    }
+
+    public function likes()
+    {
+        return $this->hasMany(BlogLike::class);
+    }
+    
+    public function isLikedBy(User $user)
+    {
+        return $this->likes()->where('user_id', $user->id)->exists();
     }
 }

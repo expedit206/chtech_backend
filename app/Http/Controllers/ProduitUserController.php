@@ -54,6 +54,7 @@ class ProduitUserController extends Controller
             'marge_min' => 'nullable|numeric|min:0',
             'stock' => 'required|integer|min:0',
             'ville' => 'nullable|string',
+            'commercant_id' => 'nullable|exists:commercants,id',
         ]);
 
         $photos = [];
@@ -91,6 +92,7 @@ class ProduitUserController extends Controller
             'marge_revente_min' => $validated['marge_min'] ?? null,
             'quantite' => $validated['stock'],
             'ville' => $validated['ville'] ?? 'aucun',
+            'commercant_id' => $user->role === 'admin' && isset($validated['commercant_id']) ? $validated['commercant_id'] : null,
         ]);
          
          ProduitCount::create([
@@ -151,6 +153,7 @@ public function destroyProduit(Request $request, $id)
             'marge_min' => 'nullable|numeric|min:0',
             'stock' => 'required|integer|min:0',
             'ville' => 'nullable|string',
+            'commercant_id' => 'nullable|exists:commercants,id',
         ]);
 
         // return response()->json(['produit' => $validated], 200);
@@ -197,6 +200,7 @@ public function destroyProduit(Request $request, $id)
             'marge_revente_min' => $validated['marge_min'] ?? null,
             'quantite' => $validated['stock'],
             'ville' => $validated['ville'] ?? 'aucun',
+            'commercant_id' => $request->user()->role === 'admin' ? $validated['commercant_id'] : null,
         ]);
 
         return response()->json(['produit' => $produit], 200);

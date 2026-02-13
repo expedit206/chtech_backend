@@ -17,7 +17,7 @@ return new class extends Migration
             $table->foreignUuid('original_user_id')->nullable()->references('id')->on('users')->onDelete('cascade');
             $table->string('nom');
             $table->text('description')->nullable();
-            $table->decimal('prix', 10, 2);
+            $table->integer('prix')->default(0);
             $table->integer('quantite')->default(1);
             $table->foreignUuid('category_id')->nullable()->constrained('category_produits')->onDelete('cascade');
             $table->string('ville')->nullable();

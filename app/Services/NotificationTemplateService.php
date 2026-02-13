@@ -26,21 +26,30 @@ class NotificationTemplateService
     
     public static function newMessage($message)
     {
-          $content = $message->content ?? '';
-        // Vérifier la longueur avant d'ajouter les points de suspension
-        $body = mb_strlen($content) > 90 ? mb_substr($content, 0, 100) . '...' : $content;
-
+        $senderName = $message->sender->nom ?? 'Quelqu\'un';
+        
+        if (isset($message->type) && $message->type === 'image') {
+            $body = "📷 {$senderName} vous a envoyé une photo.";
+        } elseif (isset($message->type) && $message->type === 'video') {
+            $body = "🎥 {$senderName} vous a envoyé une vidéo.";
+        } elseif (isset($message->type) && $message->type === 'audio') {
+            $body = "🎤 {$senderName} vous a envoyé un message vocal.";
+        } else {
+            $content = $message->content ?? '';
+            // Supprimer les sauts de ligne pour la notif
+            $content = str_replace(["\r", "\n"], ' ', $content);
+            $body = mb_strlen($content) > 90 ? mb_substr($content, 0, 90) . '...' : $content;
+            $body = "{$senderName}: {$body}";
+        }
         
         return [
              'notification' => [ 
-             
-            'title' => "message de {$message->sender->nom}",
-            'body' =>$body
+                'title' => 'Nouveau message',
+                'body' => $body
             ],
             'data' => [
                 'type' => 'new_message',
-                // 'message_id' => $message->id,
-                'conversation_id' => $message->conversation_id
+                'conversation_id' => $message->conversation_id ?? $message->sender_id // Fallback
             ]
         ];
     }
