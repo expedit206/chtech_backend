@@ -144,7 +144,7 @@ public function destroyProduit(Request $request, $id)
             'description' => 'nullable|string',
             'prix' => 'required|numeric|min:0',
             'photos' => 'array',
-            'photos.*' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'photos.*' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4048',
             'old_photos' => 'nullable|array',
             'old_photos.*' => 'nullable|string',
             'category_id' => 'required|exists:category_produits,id',

@@ -270,4 +270,36 @@ class BlogController extends Controller
             'likes_count' => $post->likes()->count()
         ]);
     }
+
+    /**
+     * Search for posts by title or content
+     */
+    public function search(Request $request)
+    {
+        $query = $request->get('q', '');
+        
+        if (!$query || strlen($query) < 2) {
+            return response()->json([
+                'success' => true,
+                'data' => []
+            ]);
+        }
+
+        $posts = Post::with(['author'])
+            ->withCount(['comments', 'likes'])
+            ->where('is_published', true)
+            ->where(function($q) use ($query) {
+                $q->where('title', 'like', "%{$query}%")
+                  ->orWhere('excerpt', 'like', "%{$query}%")
+                  ->orWhere('content', 'like', "%{$query}%");
+            })
+            ->latest('published_at')
+            ->limit(10)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $posts
+        ]);
+    }
 }

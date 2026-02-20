@@ -60,6 +60,7 @@ Route::get('/services/categories', [CategoryServiceController::class, 'index']);
 // Blog Routes
 Route::prefix('blog')->group(function () {
     Route::get('/posts', [\App\Http\Controllers\BlogController::class, 'index']);
+    Route::get('/posts/search', [\App\Http\Controllers\BlogController::class, 'search']);
     Route::get('/posts/{slug}', [\App\Http\Controllers\BlogController::class, 'show']);
     Route::get('/posts/{slug}/comments', [\App\Http\Controllers\BlogController::class, 'getComments']);
 });
@@ -124,6 +125,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/delete/produit/{produit}', [ProduitUserController::class, 'destroyProduit']);
     });
 
+    // Favorites (General)
+    Route::get('/favorites', [FavoriteController::class, 'index']);
+
     // Services (Inventory Management)
     Route::prefix('services')->group(function () {
         Route::get('/mes-services', [ServiceUserController::class, 'mesServices']);
@@ -132,8 +136,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{id}', [ServiceUserController::class, 'destroy']);
         Route::patch('/{id}/toggle-disponibilite', [ServiceUserController::class, 'toggleDisponibilite']);
         
-        // Favorites & Reviews (Auth Required)
-        Route::get('/favorites', [FavoriteController::class, 'index']);
+        // Service-specific Favorites & Reviews
         Route::post('/{id}/favorite', [FavoriteController::class, 'toggleServiceFavorite']);
         Route::post('/{id}/reviews', [ServiceReviewController::class, 'storeServiceReview']);
     });
