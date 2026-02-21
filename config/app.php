@@ -66,7 +66,7 @@ return [
     */
 
     // 'timezone' => 'UTC',
-    'timezone' => env('APP_TIMEZONE', 'UTC+1'),
+    'timezone' => env('APP_TIMEZONE', 'Africa/Douala'),
 
 
     /*

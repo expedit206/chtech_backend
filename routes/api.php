@@ -97,6 +97,14 @@ Route::get('/jeton/callback', [JetonController::class, 'handleCallback'])->name(
 */
 
 Route::middleware('auth:sanctum')->group(function () {
+    // Panier
+    Route::prefix('cart')->group(function () {
+        Route::get('/', [\App\Http\Controllers\CartController::class, 'getCart']);
+        Route::post('/add', [\App\Http\Controllers\CartController::class, 'addToCart']);
+        Route::post('/remove', [\App\Http\Controllers\CartController::class, 'removeFromCart']);
+        Route::post('/update', [\App\Http\Controllers\CartController::class, 'updateQuantity']);
+        Route::post('/clear', [\App\Http\Controllers\CartController::class, 'clearCart']);
+    });
 
     // User Profile & Settings
     Route::get('/user', [UserController::class, 'profile']);

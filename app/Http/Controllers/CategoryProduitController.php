@@ -15,8 +15,10 @@ class CategoryProduitController extends Controller
     public function index()
     { 
         $categories = CategoryProduit::orderBy('nom', 'asc')->get();
-        return response()->json(['categoryProduits' => $categories]);
-        // return response()->json(['categoryProduits' => $categories],400);
+        return response()->json([
+            'success' => true,
+            'data' => $categories
+        ]);
     }
 
     /**

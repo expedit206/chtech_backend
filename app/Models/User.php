@@ -57,6 +57,10 @@ class User extends Authenticatable
         'remember_token', // utile pour masquer si tu utilises remember
     ];
 
+    protected $casts = [
+        'cart' => 'array',
+    ];
+
 
 
     //uuid string 
