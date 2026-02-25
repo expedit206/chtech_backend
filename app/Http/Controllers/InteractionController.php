@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Validator;
 class InteractionController extends Controller
 {
 
-        protected $interactionService;
+    protected $interactionService;
 
     /**
      * Initialise le contrôleur avec le service d'interaction
@@ -43,10 +43,10 @@ class InteractionController extends Controller
         ]);
 
         try {
-            $model = $request->content_type=='produit'? ProduitInteraction::class : ServiceInteraction::class;
+            $model = $request->content_type == 'produit' ? ProduitInteraction::class : ServiceInteraction::class;
             $alreadyFavorited = $model::where('user_id', auth()->id())
-            ->where($request->content_type.'_id', $request->content_id )
-            ->where('type', 'favori')->exists();
+                ->where($request->content_type . '_id', $request->content_id)
+                ->where('type', 'favori')->exists();
             $interaction = $this->interactionService->recordInteraction(
                 $request->content_id,
                 $request->content_type,
@@ -55,22 +55,22 @@ class InteractionController extends Controller
             );
 
 
-            if( $request->type== 'favori'   && $alreadyFavorited){
-                
-                            return response()->json([
-                                'success' => true,
-                                'message' => 'Interaction enregistrée',
-                                'data' => $interaction
-                            ]);
+            if ($request->type == 'favori'   && $alreadyFavorited) {
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Interaction enregistrée',
+                    'data' => $interaction
+                ]);
             }
             // Mettre à jour le compteur sur le produit/service si nécessaire
-                $this->updateContentInteractionCount(
-                    $request->content_id,
-                    $request->content_type,
-                    $request->type
-                );
+            $this->updateContentInteractionCount(
+                $request->content_id,
+                $request->content_type,
+                $request->type
+            );
 
-                    if ($request->type == 'clic' && $request->content_type == 'produit') {
+            if ($request->type == 'clic' && $request->content_type == 'produit') {
                 $this->handlePromotionClick($request->content_id, auth()->id());
             }
 
@@ -80,7 +80,6 @@ class InteractionController extends Controller
                 'message' => 'Interaction enregistrée',
                 'data' => $interaction
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -93,11 +92,11 @@ class InteractionController extends Controller
     /**
      * Gère la réduction du budget de clics d'une promotion active
      */
-       private function handlePromotionClick($produitId, $userId = null)
+    private function handlePromotionClick($produitId, $userId = null)
     {
         // Vérifier si le produit a une promotion active
         $produit = Produit::find($produitId);
-        
+
         if (!$produit || !$produit->is_promoted) {
             return;
         }
@@ -106,7 +105,7 @@ class InteractionController extends Controller
         $promotion = Promotion::where('produit_id', $produitId)
             ->where('status', 'active')
             ->where('remaining_clicks', '>', 0)
-            ->first();  
+            ->first();
 
         if (!$promotion) {
             // Si pas de promotion trouvée mais le produit est marqué comme promu, corriger
@@ -122,7 +121,7 @@ class InteractionController extends Controller
         if ($promotion->remaining_clicks <= 0) {
             $promotion->status = 'completed';
             $promotion->ended_at = now();
-            
+
             // Mettre à jour le produit
             $produit->update([
                 'is_promoted' => false,
@@ -179,21 +178,24 @@ class InteractionController extends Controller
     /**
      * Récupère les compteurs (clics, favoris, etc.) pour un produit spécifique
      */
-public function getProductInteraction($id)
-{
-    $userId = Auth::id();
-    
-    $interactionsByType = ProduitCount::where('produit_id', $id)
-        ->select(
-            'clics_count',
-            'favorites_count',
-            'partages_count',
-            'contacts_count'
-        )
-        ->first();
-    
-    return response()->json(['data' => $interactionsByType]);
-}
+    public function getProductInteraction($id)
+    {
+        $userId = Auth::id();
+
+        $interactionsByType = ProduitCount::where('produit_id', $id)
+            ->select(
+                'clics_count',
+                'favorites_count',
+                'partages_count',
+                'contacts_count'
+            )
+            ->first();
+
+        return response()->json([
+            'success' => true,
+            'data' => $interactionsByType
+        ]);
+    }
     /**
      * Récupérer les catégories préférées
      */
@@ -223,8 +225,8 @@ public function getProductInteraction($id)
      */
     private function updateContentInteractionCount($contentId, $contentType, $interactionType)
     {
-        $model = $contentType === 'produit' 
-            ? \App\Models\Produit::class 
+        $model = $contentType === 'produit'
+            ? \App\Models\Produit::class
             : \App\Models\Service::class;
 
         $content = $model::find($contentId);

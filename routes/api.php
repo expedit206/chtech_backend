@@ -56,6 +56,7 @@ Route::prefix('marketplace')->group(function () {
 // Categories
 Route::get('/produits/categories', [CategoryProduitController::class, 'index']);
 Route::get('/services/categories', [CategoryServiceController::class, 'index']);
+Route::get('/promotions/active-event', [\App\Http\Controllers\Admin\AdminProductPromotionController::class, 'getActiveEvent']);
 
 // Blog Routes
 Route::prefix('blog')->group(function () {
@@ -143,7 +144,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{id}', [ServiceUserController::class, 'update']);
         Route::delete('/{id}', [ServiceUserController::class, 'destroy']);
         Route::patch('/{id}/toggle-disponibilite', [ServiceUserController::class, 'toggleDisponibilite']);
-        
+
         // Service-specific Favorites & Reviews
         Route::post('/{id}/favorite', [FavoriteController::class, 'toggleServiceFavorite']);
         Route::post('/{id}/reviews', [ServiceReviewController::class, 'storeServiceReview']);
@@ -183,7 +184,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/transactions/history', [JetonController::class, 'userTransactions']);
     });
     Route::get('/jeton_market/offers', [JetonController::class, 'index']);
-    
+
     Route::prefix('jeton_market')->group(function () {
         Route::post('/offer', [OfferController::class, 'store']);
         Route::get('/my-offers', [OfferController::class, 'myOffers']);
@@ -224,7 +225,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/mark-read', [BadgeController::class, 'markAllAsRead']);
         Route::post('/sync', [BadgeController::class, 'syncBadges']);
     });
-    
+
     Route::post('/token-store', [NotificationController::class, 'store']);
     Route::delete('/token/{id}', [NotificationController::class, 'destroy']);
     Route::get('/tokens', [NotificationController::class, 'getUserTokens']);
@@ -241,15 +242,42 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/posts/{slug}/like', [\App\Http\Controllers\BlogController::class, 'toggleLike']);
     });
 
+    // Supplier Onboarding
+    Route::prefix('supplier-onboarding')->group(function () {
+        Route::post('/apply', [\App\Http\Controllers\SupplierOnboardingController::class, 'store']);
+        Route::get('/status', [\App\Http\Controllers\SupplierOnboardingController::class, 'status']);
+    });
+
+    // Orders
+    Route::prefix('orders')->group(function () {
+        Route::post('/', [App\Http\Controllers\OrderController::class, 'store']);
+        Route::get('/', [App\Http\Controllers\OrderController::class, 'index']);
+        Route::get('/supplier', [App\Http\Controllers\OrderController::class, 'supplierOrders']);
+        Route::put('/{id}/status', [App\Http\Controllers\OrderController::class, 'updateStatus']);
+    });
+
     /*
     |--------------------------------------------------------------------------
     | Admin Routes
     |--------------------------------------------------------------------------
     */
     Route::prefix('admin')->middleware('admin')->group(function () {
+        // Supplier Requests
+        Route::prefix('supplier-requests')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\SupplierRequestController::class, 'index']);
+            Route::put('/{id}', [\App\Http\Controllers\Admin\SupplierRequestController::class, 'update']);
+        });
+
+        // Product Promotions Management
+        Route::prefix('product-promotions')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\AdminProductPromotionController::class, 'index']);
+            Route::patch('/{id}/toggle', [\App\Http\Controllers\Admin\AdminProductPromotionController::class, 'togglePromotion']);
+            Route::get('/event', [\App\Http\Controllers\Admin\AdminProductPromotionController::class, 'getActiveEvent']);
+            Route::post('/event', [\App\Http\Controllers\Admin\AdminProductPromotionController::class, 'updateEvent']);
+        });
         // Dashboard
         Route::get('/dashboard', [\App\Http\Controllers\Admin\AdminDashboardController::class, 'index']);
-        
+
         // Users
         Route::prefix('users')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\AdminUserController::class, 'index']);
@@ -307,6 +335,4 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/{id}', [\App\Http\Controllers\Admin\PartenaireController::class, 'destroy']);
         });
     });
-
-    });
-
+});

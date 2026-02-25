@@ -17,6 +17,7 @@
         "vite": "^6.2.4"
     },
     "dependencies": {
-        "firebase": "^12.5.0"
+        "firebase": "^12.5.0",
+        "lucide-vue-next": "^0.575.0"
     }
 }

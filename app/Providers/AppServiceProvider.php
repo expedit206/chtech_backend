@@ -5,7 +5,7 @@ namespace App\Providers;
 use App\Models\Produit;
 use App\Observers\ProduitObserver;
 use Illuminate\Support\ServiceProvider;
-use App\Console\Commands\UpdateProduitCounts;
+use App\Console\Commands\UpdateProductCounts;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -15,10 +15,10 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->commands([
-            UpdateProduitCounts::class,
-        ]);  
-      }
-          
+            UpdateProductCounts::class,
+        ]);
+    }
+
     /**
      * Bootstrap any application services.
      */
@@ -38,5 +38,5 @@ class AppServiceProvider extends ServiceProvider
             @copy($file, $publicPath . '/' . $fileName);
         }
         // Produit::observe(ProduitObserver::class);
-        }
+    }
 }

@@ -30,45 +30,37 @@ class ChatController extends Controller
             return response()->json(['message' => 'Utilisateur non authentifié'], 401);
         }
 
-        // Récupérer les conversations existantes
-        $conversations = Message::where('sender_id', $user->id)
+        // Récupérer tous les messages impliquant l'utilisateur
+        $messages = Message::where('sender_id', $user->id)
             ->orWhere('receiver_id', $user->id)
-            ->selectRaw('LEAST(sender_id, receiver_id) as user1, GREATEST(sender_id, receiver_id) as user2')
-            ->groupBy('user1', 'user2')
-            ->get()
-            ->map(function ($message) use ($user) {
-                $otherUserId = $message->user1 == $user->id ? $message->user2 : $message->user1;
-                $otherUser = User::find($otherUserId);
+            ->orderBy('created_at', 'desc')
+            ->get();
 
-                // Récupérer le dernier message de la conversation
-                $lastMessage = Message::where(function ($q) use ($user, $otherUserId) {
-                    $q->where('sender_id', $user->id)->where('receiver_id', $otherUserId);
-                })->orWhere(function ($q) use ($user, $otherUserId) {
-                    $q->where('sender_id', $otherUserId)->where('receiver_id', $user->id);
-                })->latest()->first();
+        // Regrouper par l'autre utilisateur pour identifier les conversations uniques
+        $conversations = $messages->groupBy(function ($message) use ($user) {
+            return $message->sender_id == $user->id ? $message->receiver_id : $message->sender_id;
+        })->map(function ($msgs, $otherUserId) use ($user) {
+            $otherUser = User::find($otherUserId);
+            $lastMessage = $msgs->first(); // Le premier car trié par desc
 
-                // Calculer le nombre de messages non lus
-                $unreadCount = Message::where('receiver_id', $user->id)
-                    ->where('sender_id', $otherUserId)
-                    ->where('is_read', false)
-                    ->count();
+            // Calculer le nombre de messages non lus
+            $unreadCount = Message::where('receiver_id', $user->id)
+                ->where('sender_id', $otherUserId)
+                ->where('is_read', false)
+                ->count();
 
-                $lastMessageType = $lastMessage->type ?? 'text';
-
-                return [
-                    'user_id' => $otherUserId,
-                    'name' => $otherUser ? $otherUser->nom : 'Inconnu',
-                    'last_message' => $lastMessage->content ?? '',
-                    'last_message_type' => $lastMessageType,
-                    'updated_at' => $lastMessage->updated_at ?? now(),
-                    'unread_count' => $unreadCount,
-                    'profile_photo' => $otherUser->photo,
-                ];
-            })
-            ->sortByDesc(function ($conversation) {
-                return $conversation['updated_at'];
-            })
-            ->values();
+            return [
+                'user_id' => $otherUserId,
+                'name' => $otherUser ? $otherUser->nom : 'Inconnu',
+                'last_message' => $lastMessage->content ?? '',
+                'last_message_type' => $lastMessage->type ?? 'text',
+                'updated_at' => $lastMessage->updated_at ?? now(),
+                'unread_count' => $unreadCount,
+                'profile_photo' => $otherUser->photo ?? null,
+            ];
+        })->sortByDesc(function ($conversation) {
+            return $conversation['updated_at'];
+        })->values();
 
         // Ajouter la conversation avec le service client (ID 3)
         $serviceClientId = User::where('email', 'aaa@aaa.com')->first()?->id;
@@ -134,7 +126,7 @@ class ChatController extends Controller
                 ->orWhere('sender_id', $receiverId)->where('receiver_id', $user->id);
         })
             ->with(['sender', 'receiver', 'product']);
-        
+
         $privateMessages = $messagesQuery->latest('created_at')
             ->skip($offset)
             ->take($limit + 1)
@@ -144,18 +136,18 @@ class ChatController extends Controller
         // On suppose que l'émetteur des broadcasts est 'receiverId'
         $broadcastMessages = collect([]);
         $receiver = User::find($receiverId);
-        
+
         if ($receiver && ($receiver->role === 'admin' || $receiver->email === 'aaa@aaa.com')) {
-             // On récupère les broadcasts actifs
-             // Idéalement, on filtre ceux créés après l'inscription de l'utilisateur, etc.
-             $broadcasts = \App\Models\BroadcastMessage::where('sender_id', $receiverId)
-                 ->where('is_active', true)
-                 ->latest('created_at')
-                 ->take($limit)
-                 ->get();
-            
+            // On récupère les broadcasts actifs
+            // Idéalement, on filtre ceux créés après l'inscription de l'utilisateur, etc.
+            $broadcasts = \App\Models\BroadcastMessage::where('sender_id', $receiverId)
+                ->where('is_active', true)
+                ->latest('created_at')
+                ->take($limit)
+                ->get();
+
             // Transformer les broadcasts en format compatible Message
-            $formattedBroadcasts = $broadcasts->map(function($b) use ($receiver, $user) {
+            $formattedBroadcasts = $broadcasts->map(function ($b) use ($receiver, $user) {
                 // Créer un objet fictif compatible avec la structure Message
                 // On utilise un ID négatif ou un indicateur pour dire que c'est un broadcast (optionnel)
                 // Pour le front, c'est juste un message reçu.
@@ -168,15 +160,15 @@ class ChatController extends Controller
                 $msg->is_read = true; // On considère comme lu car pas de tracking précis
                 $msg->created_at = $b->created_at;
                 $msg->updated_at = $b->updated_at;
-                
+
                 // Relations manuelles
                 $msg->setRelation('sender', $receiver);
                 $msg->setRelation('receiver', $user);
                 $msg->product = null;
-                
+
                 return $msg;
             });
-            
+
             $broadcastMessages = $formattedBroadcasts;
         }
 
@@ -184,13 +176,13 @@ class ChatController extends Controller
         $allMessages = $privateMessages->concat($broadcastMessages)
             ->sortByDesc('created_at')
             ->values();
-            
+
         // Pagination manuelle après fusion (approximation)
         // Note: La pagination est tricky avec deux sources. 
         // Si on a beaucoup de broadcasts, ils risquent d'inonder.
         // Pour l'instant on renvoie tout ce qu'on a trouvé (limit private + limit broadcast)
         // Le front triera.
-        
+
         $hasMore = $privateMessages->count() > $limit;
         $finalMessages = $allMessages->take($limit)->sortBy('created_at')->values();
 
@@ -210,9 +202,10 @@ class ChatController extends Controller
         if (!$user) return response()->json(['message' => 'Utilisateur non authentifié'], 401);
 
         $receiver = User::find($receiverId);
-        if (!$receiver) return response()->json(['message' => 'Destinataire non trouvé',
-    'receiverId'=>$receiverId
-    ], 404);
+        if (!$receiver) return response()->json([
+            'message' => 'Destinataire non trouvé',
+            'receiverId' => $receiverId
+        ], 404);
 
         $validated = $request->validate([
             'type' => 'nullable|string|in:text,audio,image,video',
@@ -271,16 +264,16 @@ class ChatController extends Controller
         try {
             broadcast(new MessageSent($message, $user, $receiver, $unreadMessages))->toOthers();
             $token = $message->receiver->deviceTokens?->where('is_active', true)->pluck('device_token')?->first() ?? null;
-            if($token){
+            if ($token) {
                 $notificationService = app()->make(NotificationService::class);
                 $template = NotificationTemplateService::newMessage($message);
                 $notificationService->sendToDevice(
                     $token,
-                    $template['notification'], 
+                    $template['notification'],
                     $template['data']
                 );
             } else {
-                Log::info('Aucun device token actif pour l\'utilisateur '.$receiver->id);
+                Log::info('Aucun device token actif pour l\'utilisateur ' . $receiver->id);
             }
 
             Log::info('MessageSent diffusé', ['message_id' => $message->id]);
@@ -293,7 +286,7 @@ class ChatController extends Controller
             'data' => $message,
         ], 201);
     }
-    
+
     /**
      * Marque tous les messages reçus par l'utilisateur comme lus
      */
@@ -301,7 +294,7 @@ class ChatController extends Controller
     {
         try {
             $userId = Auth::id();
-            
+
             // Marquer tous les messages non lus comme lus
             Message::where('receiver_id', $userId)
                 ->where('is_read', false)
@@ -309,13 +302,13 @@ class ChatController extends Controller
                     'is_read' => true,
                     'read_at' => now()
                 ]);
-            
+
             // Mettre à jour le badge
             $this->updateMessageBadge($userId, 0);
-            
+
             // Optionnel: Émettre un événement pour mise à jour en temps réel
             // broadcast(new \App\Events\BadgesUpdated($userId, 'messages', 0));
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Tous les messages ont été marqués comme lus',
@@ -323,7 +316,6 @@ class ChatController extends Controller
                     'unread_count' => 0
                 ]
             ]);
-            
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -331,24 +323,24 @@ class ChatController extends Controller
             ], 500);
         }
     }
-    
+
 
     /**
      * Récupère le nombre total de messages non lus pour l'utilisateur
      */
-      public function getUnreadCount(Request $request)
+    public function getUnreadCount(Request $request)
     {
         try {
             $userId = Auth::id();
-            
+
             // Compter les messages non lus où l'utilisateur est le destinataire
             $unreadCount = Message::where('receiver_id', $userId)
                 ->where('is_read', false)
                 ->count();
-            
+
             // Mettre à jour le badge dans la table badge_unreads
             $this->updateMessageBadge($userId, $unreadCount);
-            
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -356,7 +348,6 @@ class ChatController extends Controller
                     'total_unread' => $unreadCount
                 ]
             ]);
-            
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -366,7 +357,7 @@ class ChatController extends Controller
         }
     }
 
-    
+
     /**
      * Met à jour le compteur de badges de messages dans la base de données
      */
@@ -380,10 +371,10 @@ class ChatController extends Controller
                 'parrainages' => 0,
             ]
         );
-        
+
         $badge->messages = $count;
         $badge->save();
-        
+
         return $badge;
     }
     /**
@@ -398,7 +389,7 @@ class ChatController extends Controller
 
         $message = Message::find($messageId);
         if (!$message || $message->sender_id !== $user->id) {
-            return response()->json(['message' => 'Message non trouvé ou non autorisé'.$messageId], 403);
+            return response()->json(['message' => 'Message non trouvé ou non autorisé' . $messageId], 403);
         }
 
         $validated = $request->validate([
@@ -410,13 +401,13 @@ class ChatController extends Controller
         $message->save();
 
         $message->load('sender', 'receiver', 'product');
-        
+
         try {
             broadcast(new MessageUpdated($message, $user, User::find($message->receiver_id)))->toOthers();
         } catch (\Exception $e) {
             Log::error('Diffusion MessageUpdated échouée : ' . $e->getMessage());
         }
-        
+
         return response()->json([
             'message' => 'Message mis à jour avec succès',
             'data' => $message,
@@ -435,7 +426,7 @@ class ChatController extends Controller
 
         $message = Message::find($messageId);
         if (!$message || $message->sender_id !== $user->id) {
-            return response()->json(['message' => 'Message non trouvé ou non autorisé'.$messageId], 403);
+            return response()->json(['message' => 'Message non trouvé ou non autorisé' . $messageId], 403);
         }
 
         // Supprimer le fichier si audio ou image
@@ -449,12 +440,12 @@ class ChatController extends Controller
         $receiverId = $message->receiver_id;
         $message->delete();
 
-        try {       
+        try {
             broadcast(new MessageDeleted($messageId, $user->id, $receiverId));
         } catch (\Exception $e) {
             Log::error('Diffusion MessageDeleted échouée : ' . $e->getMessage());
         }
-        
+
         return response()->json(['message' => 'Message supprimé avec succès']);
     }
 }
