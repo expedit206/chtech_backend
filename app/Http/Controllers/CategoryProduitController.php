@@ -13,8 +13,11 @@ class CategoryProduitController extends Controller
      * Liste toutes les catégories de produits ordonnées par nom
      */
     public function index()
-    { 
-        $categories = CategoryProduit::orderBy('nom', 'asc')->get();
+    {
+        $categories = \Illuminate\Support\Facades\Cache::remember('category_produits_list', 86400, function () {
+            return CategoryProduit::orderBy('nom', 'asc')->get();
+        });
+
         return response()->json([
             'success' => true,
             'data' => $categories
@@ -24,7 +27,7 @@ class CategoryProduitController extends Controller
     /**
      * Récupère les produits liés à la catégorie d'un produit spécifique
      */
-      public function relatedProduct(Produit $produit, Request $request)
+    public function relatedProduct(Produit $produit, Request $request)
     {
         $categoryId = $request->query('category_id', $produit->category_id); // Utilise la catégorie du produit si non spécifiée
         $user = $request->user();

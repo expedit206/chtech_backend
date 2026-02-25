@@ -14,15 +14,18 @@ class CategoryServiceController extends Controller
      * Liste toutes les catégories de services ordonnées par nom
      */
     public function index()
-    { 
-        $categories = CategoryService::orderBy('nom', 'asc')->get();
+    {
+        $categories = \Illuminate\Support\Facades\Cache::remember('category_services_list', 86400, function () {
+            return CategoryService::orderBy('nom', 'asc')->get();
+        });
+
         return response()->json(['categoryServices' => $categories]);
     }
 
     /**
      * Récupère les services liés à la catégorie d'un service spécifique
      */
-      public function relatedProduct(Service $produit, Request $request)
+    public function relatedProduct(Service $produit, Request $request)
     {
         $categoryId = $request->query('category_id', $produit->category_id); // Utilise la catégorie du produit si non spécifiée
         $user = $request->user();
@@ -50,4 +53,5 @@ class CategoryServiceController extends Controller
 
 
         return response()->json(['produits' => $produits]);
-    }}
+    }
+}
