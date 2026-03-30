@@ -39,9 +39,9 @@ class CategoryServiceController extends Controller
 
         ]);
 
-        // Instancier ServiceController et appeler index
-        $produitController = new ServiceController();
-        $response = $produitController->index($request);
+        // Instancier MarketplaceController et appeler getServices
+        $marketplaceController = new MarketplaceController();
+        $response = $marketplaceController->getServices($request);
 
         // Décoder la réponse JSON
         $produits = json_decode($response->getContent(), true);

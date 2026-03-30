@@ -37,7 +37,7 @@ class Produit extends Model
         'note_moyenne',
         'nombre_avis',
         'revendable',
-        'is_promoted',
+        'ancien_prix',
 
         'photos',
         'collaboratif',
@@ -47,10 +47,6 @@ class Produit extends Model
         'commercant_id',
     ];
     // protected $appends = ['favorites_count', 'views_count'];
-    
-    
-
-
     
     public function user()
     {

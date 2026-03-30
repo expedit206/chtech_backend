@@ -17,6 +17,14 @@ class Message extends Model
     // table
     protected $table = 'messages';
 
+    protected $casts = [
+        'id' => 'string',
+        'sender_id' => 'string',
+        'receiver_id' => 'string',
+        'product_id' => 'string',
+        'is_read' => 'boolean',
+    ];
+
 
 
 

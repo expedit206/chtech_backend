@@ -73,7 +73,8 @@ class MarketplaceController extends Controller
             // Pour l'utilisateur connecté, vérifier si les produits sont dans ses favoris
             if ($user && $produits->count() > 0) {
                 // On ne récupère les favoris que pour les produits de la page actuelle
-                $currentPageIds = $produits->getCollection()->pluck('id')->toArray();
+                $items = $produits->items();
+                $currentPageIds = collect($items)->pluck('id')->toArray();
 
                 $userFavorites = \App\Models\ProduitInteraction::where('user_id', $user->id)
                     ->where('type', 'favori')
@@ -82,10 +83,9 @@ class MarketplaceController extends Controller
                     ->toArray();
 
                 // Ajouter l'attribut is_favorited à chaque produit
-                $produits->getCollection()->transform(function ($produit) use ($userFavorites) {
+                foreach ($items as $produit) {
                     $produit->is_favorited = in_array($produit->id, $userFavorites);
-                    return $produit;
-                });
+                }
             }
 
             return response()->json([

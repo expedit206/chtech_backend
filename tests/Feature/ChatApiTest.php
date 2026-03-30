@@ -20,6 +20,12 @@ class ChatApiTest extends TestCase
         parent::setUp();
         $this->user = User::factory()->create();
         $this->otherUser = User::factory()->create();
+
+        // Create service client user to ensure it's found by the controller
+        User::factory()->create([
+            'email' => 'aaa@aaa.com',
+            'nom' => 'Service Client'
+        ]);
     }
 
     /** @test */

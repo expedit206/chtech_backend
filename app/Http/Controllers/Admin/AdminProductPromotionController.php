@@ -10,15 +10,42 @@ use Illuminate\Http\Request;
 class AdminProductPromotionController extends Controller
 {
     /**
-     * Liste tous les produits avec leur statut de promotion
+     * Liste tous les produits avec leur statut de promotion (optimisé avec recherche et filtres)
      */
-    public function index()
+    public function index(Request $request)
     {
-        $produits = Produit::with('category', 'user')
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $query = Produit::with('category', 'user');
 
-        return response()->json(['success' => true, 'data' => $produits]);
+        // Filtre par recherche
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('nom', 'like', "%{$search}%")
+                    ->orWhereHas('category', function ($q) use ($search) {
+                        $q->where('nom', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        // Filtre par catégorie
+        if ($request->has('category_id') && $request->category_id !== 'all') {
+            $query->where('category_id', $request->category_id);
+        }
+
+        // Produits déjà en promo d'abord, puis par date
+        $produits = $query->orderBy('is_promoted', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->paginate($request->get('per_page', 12));
+
+        return response()->json([
+            'success' => true,
+            'data' => $produits->items(),
+            'meta' => [
+                'current_page' => $produits->currentPage(),
+                'last_page' => $produits->lastPage(),
+                'total' => $produits->total()
+            ]
+        ]);
     }
 
     /**

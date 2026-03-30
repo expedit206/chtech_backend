@@ -53,6 +53,7 @@ class ProduitApiTest extends TestCase
             'nom' => 'Nouveau Produit Test',
             'description' => 'Description du produit test',
             'prix' => 15000,
+            'ancien_prix' => 20000,
             'category_id' => $this->category->id,
             'stock' => 10,
             'ville' => 'Douala',
@@ -71,7 +72,8 @@ class ProduitApiTest extends TestCase
 
         $this->assertDatabaseHas('produits', [
             'nom' => 'Nouveau Produit Test',
-            'user_id' => $this->user->id
+            'user_id' => $this->user->id,
+            'ancien_prix' => 20000,
         ]);
     }
 
@@ -87,6 +89,7 @@ class ProduitApiTest extends TestCase
             'nom' => 'Produit Modifié',
             'description' => 'Ma nouvelle description',
             'prix' => 25000,
+            'ancien_prix' => 30000,
             'category_id' => $this->category->id,
             'stock' => 5,
             'condition' => 'occasion',
@@ -105,7 +108,8 @@ class ProduitApiTest extends TestCase
         $this->assertDatabaseHas('produits', [
             'id' => $produit->id,
             'nom' => 'Produit Modifié',
-            'prix' => 25000
+            'prix' => 25000,
+            'ancien_prix' => 30000,
         ]);
     }
 

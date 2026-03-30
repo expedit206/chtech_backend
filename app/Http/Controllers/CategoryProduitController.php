@@ -41,9 +41,9 @@ class CategoryProduitController extends Controller
 
         ]);
 
-        // Instancier ProduitController et appeler index
-        $produitController = new ProduitController();
-        $response = $produitController->index($request);
+        // Instancier MarketplaceController et appeler getProduits
+        $marketplaceController = new MarketplaceController();
+        $response = $marketplaceController->getProduits($request);
 
         // Décoder la réponse JSON
         $produits = json_decode($response->getContent(), true);

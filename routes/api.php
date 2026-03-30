@@ -250,6 +250,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Orders
     Route::prefix('orders')->group(function () {
+        Route::post('/admin-create', [App\Http\Controllers\OrderController::class, 'createFromAdmin']);
         Route::post('/', [App\Http\Controllers\OrderController::class, 'store']);
         Route::get('/', [App\Http\Controllers\OrderController::class, 'index']);
         Route::get('/supplier', [App\Http\Controllers\OrderController::class, 'supplierOrders']);

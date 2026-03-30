@@ -30,77 +30,137 @@ class ChatController extends Controller
             return response()->json(['message' => 'Utilisateur non authentifié'], 401);
         }
 
-        // Récupérer tous les messages impliquant l'utilisateur
-        $messages = Message::where('sender_id', $user->id)
-            ->orWhere('receiver_id', $user->id)
-            ->orderBy('created_at', 'desc')
+        // 1. Récupérer les ID des interlocuteurs, product_id et la date du dernier message
+        // On modifie pour grouper également par `product_id` (Facebook Marketplace style)
+        $rawConvs = Message::selectRaw("
+                CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END as interlocutor_id,
+                product_id,
+                MAX(created_at) as last_msg_at
+            ", [$user->id])
+            ->where(function ($q) use ($user) {
+                $q->where('sender_id', $user->id)
+                    ->orWhere('receiver_id', $user->id);
+            })
+            ->groupBy('interlocutor_id', 'product_id')
+            ->orderBy('last_msg_at', 'desc')
             ->get();
 
-        // Regrouper par l'autre utilisateur pour identifier les conversations uniques
-        $conversations = $messages->groupBy(function ($message) use ($user) {
-            return $message->sender_id == $user->id ? $message->receiver_id : $message->sender_id;
-        })->map(function ($msgs, $otherUserId) use ($user) {
-            $otherUser = User::find($otherUserId);
-            $lastMessage = $msgs->first(); // Le premier car trié par desc
+        $interlocutorIds = $rawConvs->pluck('interlocutor_id')->unique();
+        $productIds = $rawConvs->pluck('product_id')->filter()->unique();
 
-            // Calculer le nombre de messages non lus
-            $unreadCount = Message::where('receiver_id', $user->id)
-                ->where('sender_id', $otherUserId)
-                ->where('is_read', false)
-                ->count();
+        // 2. Charger les infos des utilisateurs en une seule fois
+        $usersMap = User::whereIn('id', $interlocutorIds)->get()->keyBy('id');
 
-            return [
-                'user_id' => $otherUserId,
-                'name' => $otherUser ? $otherUser->nom : 'Inconnu',
-                'last_message' => $lastMessage->content ?? '',
-                'last_message_type' => $lastMessage->type ?? 'text',
-                'updated_at' => $lastMessage->updated_at ?? now(),
-                'unread_count' => $unreadCount,
-                'profile_photo' => $otherUser->photo ?? null,
-            ];
-        })->sortByDesc(function ($conversation) {
-            return $conversation['updated_at'];
-        })->values();
+        // 3. Charger les comptes de messages non lus en une seule fois par interlocuteur ET produit
+        $unreadCounts = Message::select('sender_id', 'product_id', DB::raw('count(*) as count'))
+            ->where('receiver_id', $user->id)
+            ->where('is_read', false)
+            ->whereIn('sender_id', $interlocutorIds)
+            ->groupBy('sender_id', 'product_id')
+            ->get()
+            ->mapWithKeys(function ($item) {
+                return [$item->sender_id . '_' . $item->product_id => $item->count];
+            });
 
-        // Ajouter la conversation avec le service client (ID 3)
-        $serviceClientId = User::where('email', 'aaa@aaa.com')->first()?->id;
-        $isServiceClientConversation = $conversations->firstWhere('user_id', $serviceClientId) === null;
+        // 4. Charger les produits concernés
+        $productsMap = \App\Models\Produit::whereIn('id', $productIds)->get()->keyBy('id');
 
-        if ($isServiceClientConversation) {
-            $serviceClient = User::find($serviceClientId);
+        // 5. Pré-charger les derniers messages pour toutes les conversations
+        // Utilisation d'une sous-requête pour trouver l'ID du dernier message pour chaque groupe (sender, receiver, product)
+        $latestMessageIds = DB::table('messages')
+            ->select(DB::raw('MAX(id) as id'))
+            ->where(function ($q) use ($user) {
+                $q->where('sender_id', $user->id)
+                    ->orWhere('receiver_id', $user->id);
+            })
+            ->groupBy(DB::raw('LEAST(sender_id, receiver_id)'), DB::raw('GREATEST(sender_id, receiver_id)'), 'product_id')
+            ->pluck('id');
 
-            // Récupérer le dernier message avec le service client
-            $lastMessageWithService = Message::where(function ($q) use ($user, $serviceClientId) {
-                $q->where('sender_id', $user->id)->where('receiver_id', $serviceClientId);
-            })->orWhere(function ($q) use ($user, $serviceClientId) {
-                $q->where('sender_id', $serviceClientId)->where('receiver_id', $user->id);
-            })->latest()->first();
+        $lastMessages = Message::whereIn('id', $latestMessageIds)
+            ->with(['sender', 'receiver', 'product'])
+            ->get()
+            ->keyBy(function ($message) use ($user) {
+                $interlocutorId = ($message->sender_id == $user->id) ? $message->receiver_id : $message->sender_id;
+                return $interlocutorId . '_' . ($message->product_id ?? 'null');
+            });
 
-            // Calculer le nombre de messages non lus avec le service client
-            $unreadCountWithService = Message::where('receiver_id', $user->id)
-                ->where('sender_id', $serviceClientId)
-                ->where('is_read', false)
-                ->count();
+        $ordersMap = collect();
+        if ($productIds->isNotEmpty() && $interlocutorIds->isNotEmpty()) {
+            // UNE SEULE requête JOIN au lieu de N requêtes — O(1) au lieu de O(N)
+            $orders = \App\Models\Order::select('orders.user_id', 'orders.status', 'order_items.produit_id')
+                ->join('order_items', 'orders.id', '=', 'order_items.order_id')
+                ->whereIn('orders.user_id', $interlocutorIds)
+                ->whereIn('order_items.produit_id', $productIds)
+                ->latest('orders.created_at')
+                ->get();
 
-            $serviceClientConversation = [
-                'user_id' => $serviceClientId,
-                'name' => $serviceClient ? $serviceClient->nom : 'Service Client',
-                'last_message' => $lastMessageWithService->content ?? 'ecrivez moi pour tout besoin',
-                'last_message_type' => $lastMessageWithService ? $lastMessageWithService->type : 'text',
-                'updated_at' => $lastMessageWithService->updated_at ?? now(),
-                'unread_count' => $unreadCountWithService,
-                'profile_photo' => $serviceClient->photo ?? null,
-            ];
-
-            $conversations->push($serviceClientConversation);
+            foreach ($orders as $order) {
+                $key = $order->user_id . '_' . $order->produit_id;
+                // Garder seulement le plus récent (already ordered by latest)
+                if (!$ordersMap->has($key)) {
+                    $ordersMap->put($key, $order->status);
+                }
+            }
         }
 
-        // Trier à nouveau après avoir ajouté la conversation du service client
-        $conversations = $conversations->sortByDesc(function ($conversation) {
-            return $conversation['updated_at'];
-        })->values();
+        // 7. Construire la liste des conversations
+        $conversations = $rawConvs->map(function ($raw) use ($user, $usersMap, $unreadCounts, $productsMap, $lastMessages, $ordersMap) {
+            $otherUser = $usersMap->get($raw->interlocutor_id);
+            if (!$otherUser) return null;
 
-        return response()->json(['conversations' => $conversations]);
+            $product = $raw->product_id ? $productsMap->get($raw->product_id) : null;
+            $unreadKey = $raw->interlocutor_id . '_' . $raw->product_id;
+            $lastMessageKey = $raw->interlocutor_id . '_' . ($raw->product_id ?? 'null');
+            $lastMessage = $lastMessages->get($lastMessageKey);
+
+            // Check Order Status if product exists
+            $orderStatus = null;
+            if ($product) {
+                $participantId = ($user->id === $raw->interlocutor_id) ? $user->id : $raw->interlocutor_id;
+                $orderStatus = $ordersMap->get($participantId . '_' . $product->id);
+            }
+
+            return [
+                'user_id' => $raw->interlocutor_id,
+                'product_id' => $raw->product_id,
+                'product_name' => $product ? $product->nom : null,
+                'product_slug' => $product ? $product->id : null, // Needed for redirect
+                'product_image' => $product && !empty($product->photos) ? $product->photos[0] : null,
+                'user_name' => $otherUser->nom,
+                'user_photo' => $otherUser->photo ?? null,
+                'order_status' => $orderStatus,
+                // On garde 'name' et 'profile_photo' comme fallback général, mais l'affichage précis se fera via Vue
+                'name' => $product ? $product->nom : $otherUser->nom,
+                'profile_photo' => $product && !empty($product->photos) ? $product->photos[0] : ($otherUser->photo ?? null),
+                'last_message' => $lastMessage->content ?? '',
+                'last_message_type' => $lastMessage->type ?? 'text',
+                'updated_at' => $raw->last_msg_at,
+                'unread_count' => $unreadCounts->get($unreadKey, 0),
+            ];
+        })->filter()->values();
+
+        // 8. Logique Service Client (AAAA@aaa.com)
+        $serviceClient = User::where('email', 'aaa@aaa.com')->first();
+        if ($serviceClient) {
+            $hasServiceConv = $conversations->contains('user_id', $serviceClient->id);
+            if (!$hasServiceConv) {
+                // On l'ajoute par défaut s'il n'existe pas
+                $conversations->push([
+                    'user_id' => $serviceClient->id,
+                    'name' => $serviceClient->nom ?? 'Service Client',
+                    'last_message' => 'Écrivez-moi pour tout besoin',
+                    'last_message_type' => 'text',
+                    'updated_at' => now(),
+                    'unread_count' => 0,
+                    'profile_photo' => $serviceClient->photo ?? null,
+                ]);
+            }
+        }
+
+        // Tri final
+        $finalConversations = $conversations->sortByDesc('updated_at')->values();
+
+        return response()->json(['conversations' => $finalConversations]);
     }
 
     /**
@@ -119,13 +179,19 @@ class ChatController extends Controller
 
         $offset = $request->query('offset', 0);
         $limit = 30;
+        $productId = $request->query('product_id', null);
 
         // Récupérer les messages privés
         $messagesQuery = Message::where(function ($query) use ($user, $receiverId) {
             $query->where('sender_id', $user->id)->where('receiver_id', $receiverId)
-                ->orWhere('sender_id', $receiverId)->where('receiver_id', $user->id);
-        })
-            ->with(['sender', 'receiver', 'product']);
+                  ->orWhere('sender_id', $receiverId)->where('receiver_id', $user->id);
+        })->with(['sender', 'receiver', 'product']);
+
+        if ($productId !== null && $productId !== 'null' && $productId !== '') {
+             $messagesQuery->where('product_id', $productId);
+        } else {
+             $messagesQuery->whereNull('product_id');
+        }
 
         $privateMessages = $messagesQuery->latest('created_at')
             ->skip($offset)
@@ -378,7 +444,7 @@ class ChatController extends Controller
         return $badge;
     }
     /**
-     * Éditer un message existant
+     * Éditer un message existant (Seul l'expéditeur peut le faire)
      */
     public function update(Request $request, $messageId)
     {
@@ -388,8 +454,13 @@ class ChatController extends Controller
         }
 
         $message = Message::find($messageId);
-        if (!$message || $message->sender_id !== $user->id) {
-            return response()->json(['message' => 'Message non trouvé ou non autorisé' . $messageId], 403);
+        if (!$message) {
+            return response()->json(['message' => 'Message non trouvé'], 404);
+        }
+
+        // Seul l'expéditeur peut éditer (même un admin ne devrait pas changer le contenu d'un autre)
+        if ($message->sender_id !== $user->id) {
+            return response()->json(['message' => 'Non autorisé à modifier ce message'], 403);
         }
 
         $validated = $request->validate([
@@ -415,7 +486,7 @@ class ChatController extends Controller
     }
 
     /**
-     * Supprimer un message
+     * Supprimer un message (L'expéditeur ou un Admin peut le faire)
      */
     public function destroy(Request $request, $messageId)
     {
@@ -425,23 +496,35 @@ class ChatController extends Controller
         }
 
         $message = Message::find($messageId);
-        if (!$message || $message->sender_id !== $user->id) {
-            return response()->json(['message' => 'Message non trouvé ou non autorisé' . $messageId], 403);
+        if (!$message) {
+            return response()->json(['message' => 'Message non trouvé'], 404);
         }
 
-        // Supprimer le fichier si audio ou image
-        if (in_array($message->type, ['audio', 'image'])) {
-            $filePath = public_path(str_replace(asset(''), '', $message->content));
+        // Autoriser l'expéditeur OU un administrateur
+        if ($message->sender_id !== $user->id && $user->role !== 'admin') {
+            Log::warning('Tentative de suppression non autorisée', [
+                'user_id' => $user->id,
+                'message_id' => $messageId,
+                'sender_id' => $message->sender_id
+            ]);
+            return response()->json(['message' => 'Non autorisé à supprimer ce message'], 403);
+        }
+
+        // Supprimer le fichier si audio, image ou vidéo
+        if (in_array($message->type, ['audio', 'image', 'video']) && $message->attachment_url) {
+            // Extraire le chemin relatif de l'URL asset()
+            $filePath = public_path(str_replace(asset(''), '', $message->attachment_url));
             if (file_exists($filePath)) {
-                unlink($filePath);
+                @unlink($filePath);
             }
         }
 
         $receiverId = $message->receiver_id;
+        $senderId = $message->sender_id;
         $message->delete();
 
         try {
-            broadcast(new MessageDeleted($messageId, $user->id, $receiverId));
+            broadcast(new MessageDeleted($messageId, $senderId, $receiverId));
         } catch (\Exception $e) {
             Log::error('Diffusion MessageDeleted échouée : ' . $e->getMessage());
         }

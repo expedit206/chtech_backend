@@ -13,6 +13,64 @@ use Illuminate\Support\Facades\Auth;
 class OrderController extends Controller
 {
     /**
+     * L'Admin crée une commande directement depuis le resumé du chat
+     */
+    public function createFromAdmin(Request $request)
+    {
+        /** @var \App\Models\User $admin */
+        $admin = Auth::user();
+        if (!$admin->isAdmin()) {
+            return response()->json(['message' => 'Accès réservé aux administrateurs'], 403);
+        }
+
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'product_id' => 'required|exists:produits,id',
+            'quantity' => 'required|integer|min:1',
+            'agreed_price' => 'numeric|min:0', // Optionnel si on négocie en chat
+        ]);
+
+        return DB::transaction(function () use ($request) {
+            $product = Produit::findOrFail($request->product_id);
+
+            if ($product->quantite < $request->quantity) {
+                 return response()->json(['message' => "Stock insuffisant pour le produit: {$product->nom}"], 400);
+            }
+
+            $unitPrice = $request->has('agreed_price') ? $request->agreed_price : $product->prix;
+            $totalAmount = $unitPrice * $request->quantity;
+
+            // Création de l'entité commande
+            $order = Order::create([
+                'user_id' => $request->user_id,
+                'total_amount' => $totalAmount,
+                'status' => 'pending', // par défaut, le statut commence
+                'payment_status' => 'paid', // le paiement s'est fait off-platform (mobile money)
+                // Ces champs sont maintenant nullable
+                'delivery_address' => null, 
+                'contact_phone' => null,
+            ]);
+
+            // Ajout de l'item à la commande
+            OrderItem::create([
+                'order_id' => $order->id,
+                'produit_id' => $product->id,
+                'supplier_id' => $product->user_id,
+                'quantity' => $request->quantity,
+                'price' => $unitPrice,
+            ]);
+
+            // Décrémenter le stock
+            $product->decrement('quantite', $request->quantity);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Commande générée avec succès pour le client.',
+                'order' => $order->load('items.produit')
+            ], 201);
+        });
+    }
+    /**
      * Passer une commande (Simulation Escrow incluse)
      */
     public function store(Request $request)
