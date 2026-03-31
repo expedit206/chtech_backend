@@ -15,8 +15,9 @@ class ProduitUserController extends Controller
     /**
      * Liste les produits créés par l'utilisateur connecté avec statistiques (favoris, vues)
      */
-     public function produits(Request $request)
+    public function produits(Request $request)
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
         // return response()->json($);
         if (!$user) {
@@ -32,20 +33,28 @@ class ProduitUserController extends Controller
         // return response()->json(['produits' => 'produits']);
         return response()->json(['produits' => $produits]);
     }
-    
+
 
     /**
      * Enregistre un nouveau produit, compresse ses photos et initialise son compteur d'interactions
      */
-     public function storeProduit(Request $request)
+    public function storeProduit(Request $request)
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
-     
+
+        // Seuls les fournisseurs et admins peuvent poster des produits
+        if (!$user->isFournisseur() && !$user->isAdmin()) {
+            return response()->json([
+                'message' => 'Accès refusé. Vous devez être fournisseur pour poster des produits.'
+            ], 403);
+        }
 
         $validated = $request->validate([
             'nom' => 'required|string|max:255',
             'description' => 'nullable|string',
             'prix' => 'required|numeric|min:0',
+            'ancien_prix' => 'nullable|numeric|min:0',
             'photos' => 'required|array',
             'photos.*' => 'image|max:2048',
             'category_id' => 'required|exists:category_produits,id',
@@ -87,6 +96,7 @@ class ProduitUserController extends Controller
             'nom' => $validated['nom'],
             'description' => $validated['description'],
             'prix' => $validated['prix'],
+            'ancien_prix' => $validated['ancien_prix'] ?? null,
             'photos' => $photos,
             'revendable' => $validated['revendable'] == '0' ? 0 : 1,
             'marge_revente_min' => $validated['marge_min'] ?? null,
@@ -94,10 +104,10 @@ class ProduitUserController extends Controller
             'ville' => $validated['ville'] ?? 'aucun',
             'commercant_id' => $user->role === 'admin' && isset($validated['commercant_id']) ? $validated['commercant_id'] : null,
         ]);
-         
-         ProduitCount::create([
+
+        ProduitCount::create([
             'produit_id' => $produit->id,
-         
+
         ]);
 
         return response()->json(['produit' => $produit], 201);
@@ -107,35 +117,37 @@ class ProduitUserController extends Controller
     /**
      * Supprime un produit et tous les fichiers images physiques associés
      */
-public function destroyProduit(Request $request, $id)
-{
-    $user = $request->user();
-    $produit = Produit::where('user_id', $user->id)->findOrFail($id);
+    public function destroyProduit(Request $request, $id)
+    {
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+        $produit = Produit::where('user_id', $user->id)->findOrFail($id);
 
-    if (!$user || $produit->user_id !== $user->id) {
-        return response()->json(['message' => 'Accès non autorisé'], 403);
-    }
+        if (!$user || $produit->user_id !== $user->id) {
+            return response()->json(['message' => 'Accès non autorisé'], 403);
+        }
 
-    // Supprimer les photos associées
-    if ($produit->photos) {
-        foreach ($produit->photos as $photo) {
-            $path = public_path(str_replace(asset(''), '', $photo));
-            if (file_exists($path)) {
-                unlink($path);
+        // Supprimer les photos associées
+        if ($produit->photos) {
+            foreach ($produit->photos as $photo) {
+                $path = public_path(str_replace(asset(''), '', $photo));
+                if (file_exists($path)) {
+                    unlink($path);
+                }
             }
         }
+
+        $produit->delete();
+
+        return response()->json(['message' => 'Produit supprimé avec succès'], 200);
     }
-
-    $produit->delete();
-
-    return response()->json(['message' => 'Produit supprimé avec succès'], 200);
-}
 
     /**
      * Met à jour les informations et l'inventaire photos d'un produit existant
      */
-  public function updateProduit(Request $request, $id)
+    public function updateProduit(Request $request, $id)
     {
+        /** @var \App\Models\User $user */
         $user = $request->user();
         $produit = Produit::where('user_id', $user->id)->findOrFail($id);
 
@@ -143,6 +155,7 @@ public function destroyProduit(Request $request, $id)
             'nom' => 'required|string|max:255',
             'description' => 'nullable|string',
             'prix' => 'required|numeric|min:0',
+            'ancien_prix' => 'nullable|numeric|min:0',
             'photos' => 'array',
             'photos.*' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4048',
             'old_photos' => 'nullable|array',
@@ -177,24 +190,25 @@ public function destroyProduit(Request $request, $id)
 
         // Ajouter les nouvelles
         $photos = $oldPhotos; // on garde celles restantes
-        
+
         if ($request->hasFile('photos')) {
             foreach ($request->file('photos') as $photo) {
                 $filename = time() . '_' . $photo->getClientOriginalName();
                 $photo->move(public_path('storage/produits'), $filename);
-                
+
                 $photos[] = asset('storage/produits/' . $filename);
             }
         }
-        
+
         // return response()->json(['produit' => $request->hasFile('photos')], 200);
         // Mise à jour
         $produit->update([
             'nom' => $validated['nom'],
             'description' => $validated['description'],
             'prix' => $validated['prix'],
+            'ancien_prix' => $validated['ancien_prix'] ?? null,
             'photos' => $photos,
-            'condition'=>$validated['condition'],
+            'condition' => $validated['condition'],
             'category_id' => $validated['category_id'],
             'revendable' => $validated['revendable'] ?? false,
             'marge_revente_min' => $validated['marge_min'] ?? null,
@@ -205,5 +219,4 @@ public function destroyProduit(Request $request, $id)
 
         return response()->json(['produit' => $produit], 200);
     }
-
 }

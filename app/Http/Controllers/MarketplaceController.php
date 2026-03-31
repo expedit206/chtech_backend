@@ -13,177 +13,98 @@ class MarketplaceController extends Controller
     /**
      * Récupère la liste des produits pour la marketplace avec filtres et scores
      */
-public function getProduits(Request $request): JsonResponse
-{
-   try {
-    $user = auth()->user();
-    $query = Produit::with(['category', 'user'])
-        ->where('est_actif', true)
-        ->where('quantite', '>', 0);
+    public function getProduits(Request $request): JsonResponse
+    {
+        try {
+            $user = auth()->user();
+            $query = Produit::with(['category', 'user'])
+                ->where('est_actif', true)
+                ->where('quantite', '>', 0);
 
-    // PERSONNALISATION SIMPLE SI PAS DE FILTRES EXPLICITES
-    $hasExplicitFilters = $request->has('categoryId') || $request->has('search') || $request->has('ville');
-    
+            // PERSONNALISATION : PLUS DE SCORE LOURD, JUSTE DU RANDOM OU FILTRES
+            $hasExplicitFilters = $request->has('categoryId') || $request->has('search') || $request->has('ville');
 
-    
-    
-    if (!$hasExplicitFilters && $user) {
-        
-        // CONSTRUCTION DIRECTE DU SCORE
-        $scoreParts = [];
-        
-        // 1. VILLE DE L'UTILISATEUR (60 points)
-        if ($user->ville) {
-            $scoreParts[] = "CASE WHEN ville LIKE '%{$user->ville}%' THEN 60 ELSE 0 END";
-        }
-        
-        // 2. CATÉGORIES FAVORIES via table d'interactions (40 points)
-        // Récupérer les catégories des produits que l'utilisateur a favorisé
-        $favoriteCategories = \App\Models\ProduitInteraction::where('interaction_produits.user_id', $user->id)
-            ->where('type', 'favori')
-            ->whereHas('produit')
-            ->with('produit.category')
-            ->get()
-            ->pluck('produit.category_id')
-            ->unique()
-            ->filter()
-            ->toArray();
-        
-        // Alternative plus optimisée (requête directe)
-        if (empty($favoriteCategories)) {
-            $favoriteCategories = \App\Models\ProduitInteraction::where('interaction_produits.user_id', $user->id)
-                ->where('type', 'favori')
-                ->join('produits', 'interaction_produits.produit_id', '=', 'produits.id')
-                ->pluck('produits.category_id')
-                ->unique()
-                ->filter()
-                ->toArray();
-        }
-        
-        if (!empty($favoriteCategories)) {
-            $categoriesList = "'" . implode("','", $favoriteCategories) . "'";
-            $scoreParts[] = "CASE WHEN category_id IN ({$categoriesList}) THEN 40 ELSE 0 END";
-        }
-        
-        // 3. PRODUITS VUS RÉCEMMENT (20 points) - Basé sur les interactions de type 'vue'
-        $recentlyViewedCategories = \App\Models\ProduitInteraction::where('interaction_produits.user_id', $user->id)
-            ->where('type', 'clic')
-            ->where('interaction_produits.created_at', '>', now()->subDays(7))
-            ->join('produits', 'interaction_produits.produit_id', '=', 'produits.id')
-            ->pluck('produits.category_id')
-            ->unique()
-            ->filter()
-            ->toArray();
-        
-        if (!empty($recentlyViewedCategories)) {
-            $recentCategoriesList = "'" . implode("','", $recentlyViewedCategories) . "'";
-            $scoreParts[] = "CASE WHEN category_id IN ({$recentCategoriesList}) THEN 20 ELSE 0 END";
-        }
-        
-        // 4. POPULARITÉ (Basée sur le nombre total d'interactions)
-        $scoreParts[] = "(
-            SELECT COUNT(*) FROM interaction_produits 
-            WHERE interaction_produits.produit_id = produits.id 
-            AND type IN ('favori', 'contact', 'partage')
-        ) * 5";
-        
-        // Ajouter le score au SELECT et trier
-        if (!empty($scoreParts)) {
-            $selectScore = implode(' + ', $scoreParts);
-            $query->selectRaw('produits.*, ' . $selectScore . ' as personal_score');
-            
-            $query->orderBy('personal_score', 'desc');
-        }
-        
-    } else {
-        // COMPORTEMENT NORMAL AVEC FILTRES
-        if ($request->has('categoryId') && $request->categoryId !== 'all') {
-            $query->where('category_id',  $request->categoryId)
-                  ->orWhere('description', 'like', "%{$request->categoryId}%")
-                  ->orWhere('nom', 'like', "%{$request->categoryId}%")
-            ;
-        }
+            if ($hasExplicitFilters) {
+                // COMPORTEMENT NORMAL AVEC FILTRES
+                if ($request->has('categoryId') && $request->categoryId !== 'all') {
+                    $query->where('category_id',  $request->categoryId);
+                }
 
-        if ($request->has('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('nom', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%")
-                  ->orWhereHas('category', function($q) use ($search) {
-                      $q->where('nom', 'like', "%{$search}%");
-                  });
-            });
-        }
+                if ($request->has('search')) {
+                    $search = $request->search;
+                    $query->where(function ($q) use ($search) {
+                        $q->where('nom', 'like', "%{$search}%")
+                            ->orWhere('description', 'like', "%{$search}%")
+                            ->orWhereHas('category', function ($q) use ($search) {
+                                $q->where('nom', 'like', "%{$search}%");
+                            });
+                    });
+                }
 
-        if ($request->has('ville')) {
-            $query->where('ville', 'like', "%{$request->ville}%");
+                if ($request->has('ville')) {
+                    $query->where('ville', 'like', "%{$request->ville}%");
+                }
+
+                $query->orderBy('is_promoted', 'desc')->orderBy('created_at', 'desc');
+            } else {
+                // AFFICHAGE ALÉATOIRE POUR LA PERFORMANCE ET LA DÉCOUVERTE
+                $query->inRandomOrder();
+            }
+
+
+
+            // Ajouter les counts d'interactions
+            $query->withCount([
+                'interactions as favoris_count' => function ($q) {
+                    $q->where('type', 'favori');
+                },
+                'interactions as vues_count' => function ($q) {
+                    $q->where('type', 'vue');
+                },
+                'interactions as contacts_count' => function ($q) {
+                    $q->where('type', 'contact');
+                }
+            ]);
+
+            // Pagination d'abord (simplePaginate est plus rapide)
+            $perPage = $request->get('per_page', 25);
+            $produits = $query->simplePaginate($perPage);
+
+            // Pour l'utilisateur connecté, vérifier si les produits sont dans ses favoris
+            if ($user && $produits->count() > 0) {
+                // On ne récupère les favoris que pour les produits de la page actuelle
+                $items = $produits->items();
+                $currentPageIds = collect($items)->pluck('id')->toArray();
+
+                $userFavorites = \App\Models\ProduitInteraction::where('user_id', $user->id)
+                    ->where('type', 'favori')
+                    ->whereIn('produit_id', $currentPageIds)
+                    ->pluck('produit_id')
+                    ->toArray();
+
+                // Ajouter l'attribut is_favorited à chaque produit
+                foreach ($items as $produit) {
+                    $produit->is_favorited = in_array($produit->id, $userFavorites);
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'produits' => $produits->items(),
+                'meta' => [
+                    'current_page' => $produits->currentPage(),
+                    'per_page' => $produits->perPage(),
+                    'has_more_pages' => $produits->hasMorePages(),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors du chargement des produits',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
-
-    // Tri secondaire par date (si pas de score personnel)
-    if (!$hasExplicitFilters && $user && empty($scoreParts)) {
-        $query->orderBy('created_at', 'desc');
-    }
-
-
-
-    // Ajouter les counts d'interactions
-    $query->withCount([
-        'interactions as favoris_count' => function($q) {
-            $q->where('type', 'favori');
-        },
-        'interactions as vues_count' => function($q) {
-            $q->where('type', 'vue');
-        },
-        'interactions as contacts_count' => function($q) {
-            $q->where('type', 'contact');
-        }
-    ]);
-
-    // Pour l'utilisateur connecté, vérifier si les produits sont dans ses favoris
-    if ($user) {
-        $produitIds = $query->pluck('id')->toArray();
-        
-        // Récupérer les IDs des produits favorisés par l'utilisateur
-        $userFavorites = \App\Models\ProduitInteraction::where('user_id', $user->id)
-            ->where('type', 'favori')
-            ->whereIn('produit_id', $produitIds)
-            ->pluck('produit_id')
-            ->toArray();
-        
-        // Après avoir récupéré les produits, ajouter l'attribut is_favorited
-        $perPage = $request->get('per_page', 8);
-        $produits = $query->paginate($perPage);
-        
-        // Ajouter l'attribut is_favorited à chaque produit
-        $produits->getCollection()->transform(function ($produit) use ($userFavorites) {
-            $produit->is_favorited = in_array($produit->id, $userFavorites);
-            return $produit;
-        });
-    } else {
-        $perPage = $request->get('per_page', 8);
-        $produits = $query->paginate($perPage);
-    }
-
-    return response()->json([
-        'success' => true,
-        'produits' => $produits,
-        'meta' => [
-            'current_page' => $produits->currentPage(),
-            'last_page' => $produits->lastPage(),
-            'per_page' => $produits->perPage(),
-            'total' => $produits->total(),
-        ]
-    ]);
-
-} catch (\Exception $e) {
-    return response()->json([
-        'success' => false,
-        'message' => 'Erreur lors du chargement des produits',
-        'error' => $e->getMessage()
-    ], 500);
-}
-}
     /**
      * Récupère la liste des services disponibles sur la marketplace
      */
@@ -201,13 +122,13 @@ public function getProduits(Request $request): JsonResponse
             // Filtrage par recherche
             if ($request->has('search')) {
                 $search = $request->search;
-                $query->where(function($q) use ($search) {
+                $query->where(function ($q) use ($search) {
                     $q->where('titre', 'like', "%{$search}%")
-                      ->orWhere('description', 'like', "%{$search}%")
-                      ->orWhere('competences', 'like', "%{$search}%")
-                      ->orWhereHas('category', function($q) use ($search) {
-                          $q->where('nom', 'like', "%{$search}%");
-                      });
+                        ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhere('competences', 'like', "%{$search}%")
+                        ->orWhereHas('category', function ($q) use ($search) {
+                            $q->where('nom', 'like', "%{$search}%");
+                        });
                 });
             }
 
@@ -226,25 +147,23 @@ public function getProduits(Request $request): JsonResponse
                     break;
                 case 'popular':
                     $query->orderBy('note_moyenne', 'desc')
-                          ->orderBy('nombre_avis', 'desc');
+                        ->orderBy('nombre_avis', 'desc');
                     break;
                 default:
                     $query->orderBy('created_at', 'desc');
             }
 
-            $services = $query->paginate($request->get('per_page', 24));
+            $services = $query->simplePaginate($request->get('per_page', 24));
 
             return response()->json([
                 'success' => true,
                 'data' => $services->items(),
                 'meta' => [
                     'current_page' => $services->currentPage(),
-                    'last_page' => $services->lastPage(),
                     'per_page' => $services->perPage(),
-                    'total' => $services->total(),
+                    'has_more_pages' => $services->hasMorePages(),
                 ]
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -262,7 +181,7 @@ public function getProduits(Request $request): JsonResponse
         try {
             $search = $request->get('q', '');
             $type = $request->get('type', 'all');
-            
+
             if (empty($search) || strlen($search) < 2) {
                 return response()->json([
                     'success' => true,
@@ -276,12 +195,12 @@ public function getProduits(Request $request): JsonResponse
                 $products = Produit::with(['category', 'user'])
                     ->where('est_actif', true)
                     ->where('quantite', '>', 0)
-                    ->where(function($q) use ($search) {
+                    ->where(function ($q) use ($search) {
                         $q->where('nom', 'like', "%{$search}%")
-                          ->orWhere('description', 'like', "%{$search}%")
-                          ->orWhereHas('category', function($q) use ($search) {
-                              $q->where('nom', 'like', "%{$search}%");
-                          });
+                            ->orWhere('description', 'like', "%{$search}%")
+                            ->orWhereHas('category', function ($q) use ($search) {
+                                $q->where('nom', 'like', "%{$search}%");
+                            });
                     })
                     // Tri par pertinence : nom d'abord, puis description
                     ->orderByRaw("CASE 
@@ -290,7 +209,7 @@ public function getProduits(Request $request): JsonResponse
                         ELSE 3 END", ["{$search}", "%{$search}%"])
                     ->limit(15)
                     ->get()
-                    ->map(function($item) {
+                    ->map(function ($item) {
                         $item->result_type = 'product';
                         return $item;
                     });
@@ -301,13 +220,13 @@ public function getProduits(Request $request): JsonResponse
             if ($type === 'all' || $type === 'services') {
                 $services = Service::with(['category', 'user'])
                     ->where('disponibilite', 'disponible')
-                    ->where(function($q) use ($search) {
+                    ->where(function ($q) use ($search) {
                         $q->where('titre', 'like', "%{$search}%")
-                          ->orWhere('description', 'like', "%{$search}%")
-                          ->orWhere('competences', 'like', "%{$search}%")
-                          ->orWhereHas('category', function($q) use ($search) {
-                              $q->where('nom', 'like', "%{$search}%");
-                          });
+                            ->orWhere('description', 'like', "%{$search}%")
+                            ->orWhere('competences', 'like', "%{$search}%")
+                            ->orWhereHas('category', function ($q) use ($search) {
+                                $q->where('nom', 'like', "%{$search}%");
+                            });
                     })
                     // Tri par pertinence : titre d'abord
                     ->orderByRaw("CASE 
@@ -316,7 +235,7 @@ public function getProduits(Request $request): JsonResponse
                         ELSE 3 END", ["{$search}", "%{$search}%"])
                     ->limit(15)
                     ->get()
-                    ->map(function($item) {
+                    ->map(function ($item) {
                         $item->result_type = 'service';
                         return $item;
                     });
@@ -329,7 +248,6 @@ public function getProduits(Request $request): JsonResponse
                 'data' => $results,
                 'search_query' => $search
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

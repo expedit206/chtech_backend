@@ -5,7 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Models\Produit;
 
-class UpdateProduitCounts extends Command
+class UpdateProductCounts extends Command
 {
     protected $signature = 'product:counts';
     protected $description = 'Mise à jour des compteurs de produits';

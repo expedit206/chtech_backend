@@ -22,7 +22,26 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory; // <---- Ajout de HasApiTokens
+    use HasApiTokens, HasFactory;
+
+    const ROLE_USER = 'user';
+    const ROLE_FOURNISSEUR = 'fournisseur';
+    const ROLE_ADMIN = 'admin';
+
+    public function isAdmin(): bool
+    {
+        return $this->role === self::ROLE_ADMIN;
+    }
+
+    public function isFournisseur(): bool
+    {
+        return $this->role === self::ROLE_FOURNISSEUR;
+    }
+
+    public function isNormalUser(): bool
+    {
+        return $this->role === self::ROLE_USER;
+    }
 
 
        protected $keyType = 'string';
