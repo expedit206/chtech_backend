@@ -16,6 +16,8 @@ use App\Traits\InteractionService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
+use Illuminate\Support\Str;
+
 class Produit extends Model
 {
     use HasFactory;
@@ -30,6 +32,7 @@ class Produit extends Model
         'user_id',
         'category_id',
         'nom',
+        'slug',
         'ville',
         'description',
         'prix',
@@ -46,6 +49,30 @@ class Produit extends Model
         'original_user_id',
         'commercant_id',
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($produit) {
+            if (empty($produit->slug)) {
+                $produit->slug = static::generateUniqueSlug($produit->nom);
+            }
+        });
+
+        static::updating(function ($produit) {
+            if ($produit->isDirty('nom') && !$produit->isDirty('slug')) {
+                $produit->slug = static::generateUniqueSlug($produit->nom);
+            }
+        });
+    }
+
+    protected static function generateUniqueSlug($name)
+    {
+        $slug = Str::slug($name);
+        $count = static::where('slug', 'LIKE', "{$slug}%")->count();
+        return $count ? "{$slug}-{$count}" : $slug;
+    }
     // protected $appends = ['favorites_count', 'views_count'];
     
     public function user()

@@ -32,6 +32,12 @@ class ProduitController extends Controller
     public function show($id, Request $request): JsonResponse
     {
         try {
+            // Check if $id contains a dashed slug and UUID format (e.g., my-product-123e4567-e89b-12d3-a456-426614174000)
+            $numericId = $id;
+            if (preg_match('/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/i', $id, $matches)) {
+                $numericId = $matches[1];
+            }
+
             // Récupérer l'utilisateur via le guard sanctum sans bloquer si absent
             $user = $request->user('sanctum');
 
@@ -45,7 +51,10 @@ class ProduitController extends Controller
                     $q->where('statut', 'actif')->where('end_date', '>', now());
                 }
             ])
-            ->findOrFail($id);
+            ->where('id', $numericId)
+            ->orWhere('id', $id)
+            ->orWhere('slug', $id)
+            ->firstOrFail();
 
             // Produits similaires (même catégorie, exclure le produit actuel)
             $similarProduits = Produit::with(['user', 'category'])
