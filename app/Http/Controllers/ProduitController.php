@@ -67,7 +67,7 @@ class ProduitController extends Controller
             // Vérifier si favori (seulement si utilisateur connecté)
             $isFavorited = false;
             if ($user) {
-                $isFavorited = \App\Models\ProduitInteraction::where('produit_id', $id)
+                $isFavorited = \App\Models\ProduitInteraction::where('produit_id', $produit->id)
                     ->where('user_id', $user->id)
                     ->where('type', 'favori')
                     ->exists();
@@ -108,7 +108,7 @@ class ProduitController extends Controller
         // Incrémenter views_count pour les non-connectés
         $produit->counts()->updateOrCreate(
             ['produit_id' => $produitId],
-            ['views_count' => \DB::raw('views_count + 1')]
+            ['views_count' => DB::raw('views_count + 1')]
         );
 
         return response()->json(['message' => 'Vue enregistrée']);
@@ -136,7 +136,7 @@ class ProduitController extends Controller
 
             $produit->counts()->updateOrCreate(
                 ['produit_id' => $produitId],
-                ['views_count' => \DB::raw('views_count + 1')]
+                ['views_count' => DB::raw('views_count + 1')]
             );
 
             return response()->json([
@@ -153,7 +153,7 @@ class ProduitController extends Controller
             // Nouvelle vue, incrémenter views_count et enregistrer dans product_views
             $produit->counts()->updateOrCreate(
                 ['produit_id' => $produitId],
-                ['views_count' => \DB::raw('views_count + 1')]
+                ['views_count' => DB::raw('views_count + 1')]
             );
 
             ProductView::create([

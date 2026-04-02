@@ -34,7 +34,7 @@ class UserSeeder extends Seeder
 
         // Administrateur
         User::firstOrCreate(
-            ['email' => 'admin@chtech.com'],
+            ['email' => 'admin@sasayee.com'],
             [
                 'nom' => 'Admin CHTECH',
                 'telephone' => '+237600000001',
@@ -47,7 +47,7 @@ class UserSeeder extends Seeder
 
         // Fournisseur
         User::firstOrCreate(
-            ['email' => 'fournisseur@chtech.com'],
+            ['email' => 'fournisseur@sasayee.com'],
             [
                 'nom' => 'HighTech Solutions',
                 'telephone' => '+237600000002',
@@ -60,7 +60,7 @@ class UserSeeder extends Seeder
 
         // Utilisateur Normal
         User::firstOrCreate(
-            ['email' => 'user@chtech.com'],
+            ['email' => 'user@sasayee.com'],
             [
                 'nom' => 'Jean Dupont',
                 'telephone' => '+237600000003',
