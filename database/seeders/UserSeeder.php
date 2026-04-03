@@ -36,7 +36,7 @@ class UserSeeder extends Seeder
         User::firstOrCreate(
             ['email' => 'admin@sasayee.com'],
             [
-                'nom' => 'Admin CHTECH',
+                'nom' => 'Admin SASAYEE',
                 'telephone' => '+237600000001',
                 'ville' => 'Douala',
                 'mot_de_passe' => \Illuminate\Support\Facades\Hash::make('password'),
