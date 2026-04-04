@@ -120,17 +120,27 @@ class ChatController extends Controller
                 $orderStatus = $ordersMap->get($participantId . '_' . $product->id);
             }
 
+            // 7. Déterminer le nom de la conversation (Produit - Client)
+            // On ne doit JAMAIS afficher le nom de l'admin.
+            $isAdminInterlocutor = ($otherUser->role === 'admin' || $otherUser->email === 'aaa@aaa.com');
+            
+            // Le "Client" est celui qui n'est pas l'admin. 
+            // Si l'utilisateur actuel est l'admin, le client est $otherUser.
+            // Si l'utilisateur actuel est le client, le client est $user.
+            $clientName = ($user->role === 'admin' || $user->email === 'aaa@aaa.com') ? $otherUser->nom : $user->nom;
+            
+            $displayName = $product ? ($product->nom . ' - ' . $clientName) : $otherUser->nom;
+
             return [
                 'user_id' => $raw->interlocutor_id,
                 'product_id' => $raw->product_id,
                 'product_name' => $product ? $product->nom : null,
-                'product_slug' => $product ? $product->id : null, // Needed for redirect
+                'product_slug' => $product ? $product->slug : null,
                 'product_image' => $product && !empty($product->photos) ? $product->photos[0] : null,
                 'user_name' => $otherUser->nom,
                 'user_photo' => $otherUser->photo ?? null,
                 'order_status' => $orderStatus,
-                // On garde 'name' et 'profile_photo' comme fallback général, mais l'affichage précis se fera via Vue
-                'name' => $product ? $product->nom : $otherUser->nom,
+                'name' => $displayName,
                 'profile_photo' => $product && !empty($product->photos) ? $product->photos[0] : ($otherUser->photo ?? null),
                 'last_message' => $lastMessage->content ?? '',
                 'last_message_type' => $lastMessage->type ?? 'text',
@@ -230,7 +240,7 @@ class ChatController extends Controller
                 // Relations manuelles
                 $msg->setRelation('sender', $receiver);
                 $msg->setRelation('receiver', $user);
-                $msg->product = null;
+                $msg->setRelation('product', null);
 
                 return $msg;
             });
@@ -255,7 +265,8 @@ class ChatController extends Controller
         return response()->json([
             'messages' => $finalMessages,
             'hasMore' => $hasMore,
-            'user' => User::find($receiverId),
+            'user' => $receiver,
+            'product' => $productId ? \App\Models\Produit::find($productId) : null
         ]);
     }
 
