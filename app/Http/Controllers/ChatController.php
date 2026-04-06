@@ -32,7 +32,10 @@ class ChatController extends Controller
 
         // 1. Récupérer les ID des interlocuteurs, product_id et la date du dernier message
         // On modifie pour grouper également par `product_id` (Facebook Marketplace style)
-        $rawConvs = Message::selectRaw("
+        $offset = (int) $request->query('offset', 0);
+        $limit = (int) $request->query('limit', 10);
+
+        $rawConvsBase = Message::selectRaw("
                 CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END as interlocutor_id,
                 product_id,
                 MAX(created_at) as last_msg_at
@@ -41,9 +44,16 @@ class ChatController extends Controller
                 $q->where('sender_id', $user->id)
                     ->orWhere('receiver_id', $user->id);
             })
-            ->groupBy('interlocutor_id', 'product_id')
+            ->groupBy('interlocutor_id', 'product_id');
+
+        $rawConvs = (clone $rawConvsBase)
             ->orderBy('last_msg_at', 'desc')
+            ->skip($offset)
+            ->take($limit + 1)
             ->get();
+
+        $hasMoreConvs = $rawConvs->count() > $limit;
+        $rawConvs = $rawConvs->take($limit);
 
         $interlocutorIds = $rawConvs->pluck('interlocutor_id')->unique();
         $productIds = $rawConvs->pluck('product_id')->filter()->unique();
@@ -170,7 +180,10 @@ class ChatController extends Controller
         // Tri final
         $finalConversations = $conversations->sortByDesc('updated_at')->values();
 
-        return response()->json(['conversations' => $finalConversations]);
+        return response()->json([
+            'conversations' => $finalConversations,
+            'hasMore' => $hasMoreConvs ?? false
+        ]);
     }
 
     /**
