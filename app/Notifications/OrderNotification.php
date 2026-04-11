@@ -23,7 +23,7 @@ class OrderNotification extends BaseNotification
         
         return new static($title, $message, [
             'order_id' => $order->id,
-            'action_url' => "/seller/orders"
+            'action_url' => "/profile/vendeur-orders"
         ], 'sale');
     }
 }

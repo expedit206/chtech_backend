@@ -13,7 +13,7 @@ class MessageNotification extends BaseNotification
         return new static($title, $messageText, [
             'sender_id' => $sender->id,
             'conversation_id' => $message->conversation_id,
-            'action_url' => "/chat/{$sender->id}"
+            'action_url' => "/messages/{$sender->id}"
         ], 'message');
     }
 }

@@ -1,29 +1,29 @@
 <?php
-
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BadgeController;
+use App\Http\Controllers\BlogController;
+use App\Http\Controllers\CategoryProduitController;
+use App\Http\Controllers\ChatController;
+use App\Http\Controllers\FavoriteController;
+use App\Http\Controllers\InteractionController;
+use App\Http\Controllers\JetonController;
+use App\Http\Controllers\MarketplaceController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\OfferController;
+use App\Http\Controllers\ParrainageController;
+use App\Http\Controllers\PasswordResetController;
+use App\Http\Controllers\ProduitController;
+use App\Http\Controllers\ProduitReviewController;
+use App\Http\Controllers\ProduitUserController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PromotionController;
+use App\Http\Controllers\ReventeController;
+use App\Http\Controllers\StatsController;
+use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\WalletController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\ChatController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\BadgeController;
-use App\Http\Controllers\JetonController;
-use App\Http\Controllers\OfferController;
-use App\Http\Controllers\StatsController;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\WalletController;
-use App\Http\Controllers\FavoriteController;
-use App\Http\Controllers\ParrainageController;
-use App\Http\Controllers\InteractionController;
-use App\Http\Controllers\MarketplaceController;
-use App\Http\Controllers\ProduitUserController;
-use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\SubscriptionController;
-use App\Http\Controllers\PromotionController;
-use App\Http\Controllers\PasswordResetController;
-use App\Http\Controllers\ProduitReviewController;
-use App\Http\Controllers\CategoryProduitController;
-use App\Http\Controllers\ProduitController;
-
 /*
 |--------------------------------------------------------------------------
 | Public Routes
@@ -53,11 +53,11 @@ Route::get('/produits/categories', [CategoryProduitController::class, 'index']);
 Route::get('/promotions/active-event', [\App\Http\Controllers\Admin\AdminProductPromotionController::class, 'getActiveEvent']);
 
 // Blog Routes
-Route::prefix('blog')->group(function () {
-    Route::get('/posts', [\App\Http\Controllers\BlogController::class, 'index']);
-    Route::get('/posts/search', [\App\Http\Controllers\BlogController::class, 'search']);
-    Route::get('/posts/{slug}', [\App\Http\Controllers\BlogController::class, 'show']);
-    Route::get('/posts/{slug}/comments', [\App\Http\Controllers\BlogController::class, 'getComments']);
+Route::prefix('blogs')->group(function () {
+    Route::get('/posts', [BlogController::class, 'index']);
+    Route::get('/posts/search', [BlogController::class, 'search']);
+    Route::get('/posts/{slug}', [BlogController::class, 'show']);
+    Route::get('/posts/{slug}/comments', [BlogController::class, 'getComments']);
 });
 
 // Public Product/Service Access
@@ -280,12 +280,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Blog Management
         Route::prefix('blog')->group(function () {
-            Route::get('/posts', [\App\Http\Controllers\BlogController::class, 'adminIndex']);
-            Route::post('/posts', [\App\Http\Controllers\BlogController::class, 'store']);
-            Route::post('/posts/{id}', [\App\Http\Controllers\BlogController::class, 'update']);
-            Route::delete('/posts/{id}', [\App\Http\Controllers\BlogController::class, 'destroy']);
-            Route::patch('/posts/{id}/toggle-publish', [\App\Http\Controllers\BlogController::class, 'togglePublish']);
-            Route::delete('/comments/{id}', [\App\Http\Controllers\BlogController::class, 'deleteComment']);
+            Route::get('/posts', [BlogController::class, 'adminIndex']);
+            Route::post('/posts', [BlogController::class, 'store']);
+            Route::post('/posts/{id}', [BlogController::class, 'update']);
+            Route::delete('/posts/{id}', [BlogController::class, 'destroy']);
+            Route::patch('/posts/{id}/toggle-publish', [BlogController::class, 'togglePublish']);
+            Route::delete('/comments/{id}', [BlogController::class, 'deleteComment']);
         });
 
         // Partenaires

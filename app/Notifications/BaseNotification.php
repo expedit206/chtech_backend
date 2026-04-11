@@ -30,11 +30,10 @@ class BaseNotification extends Notification
 
     public function toArray($notifiable)
     {
-        return [
+        return array_merge([
             'title' => $this->title,
             'message' => $this->message,
-            'data' => $this->data,
             'type' => $this->type,
-        ];
+        ], $this->data);
     }
 }

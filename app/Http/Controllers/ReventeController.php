@@ -13,6 +13,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use App\Services\NotificationService;
 use App\Services\NotificationTemplateService;
+use App\Notifications\ReventeNotification;
 
 class ReventeController extends Controller
 {
@@ -94,6 +95,7 @@ class ReventeController extends Controller
             $owner = $produit->user;
 
             if ($owner) {
+                // 1. Notification PUSH (Mobile)
                 $notificationService = app()->make(\App\Services\NotificationService::class);
                 $template = \App\Services\NotificationTemplateService::reventeRequested($revente);
 
@@ -101,9 +103,10 @@ class ReventeController extends Controller
                 if ($deviceToken) {
                     $notificationService->sendToDevice($deviceToken, $template['notification'], $template['data']);
                     \Illuminate\Support\Facades\Log::info('Envoi notification reventeRequested réussi pour ' . $owner->email);
-                } else {
-                    \Illuminate\Support\Facades\Log::info('Pas de token pour ' . $owner->email);
                 }
+
+                // 2. Notification BASE DE DONNÉES (Centre de notif)
+                $owner->notify(ReventeNotification::requested($revente));
             }
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Envoi notification reventeRequested échoué : ' . $e, ['revente_id' => $revente->id]);
@@ -172,6 +175,12 @@ class ReventeController extends Controller
 
         $revente->statut = $request->statut;
         $revente->save();
+
+        // NOTIFIER LE REVENDEUR
+        $revendeur = $revente->revendeur;
+        if ($revendeur) {
+            $revendeur->notify(ReventeNotification::statusChanged($revente));
+        }
 
         return response()->json(['message' => 'Revente mise à jour', 'revente' => $revente]);
               } catch(\Exception $e ){
