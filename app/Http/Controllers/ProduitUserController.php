@@ -43,10 +43,10 @@ class ProduitUserController extends Controller
         /** @var \App\Models\User $user */
         $user = $request->user();
 
-        // Seuls les fournisseurs et admins peuvent poster des produits
-        if (!$user->isFournisseur() && !$user->isAdmin()) {
+        // Seuls les vendeurs et admins peuvent poster des produits
+        if (!$user->isVendeur() && !$user->isAdmin()) {
             return response()->json([
-                'message' => 'Accès refusé. Vous devez être fournisseur pour poster des produits.'
+                'message' => 'Accès refusé. Vous devez être vendeur pour poster des produits.'
             ], 403);
         }
 
@@ -58,9 +58,7 @@ class ProduitUserController extends Controller
             'photos' => 'required|array',
             'photos.*' => 'image|max:2048',
             'category_id' => 'required|exists:category_produits,id',
-            'revendable' => 'required',
             'condition' => 'string|required',
-            'marge_min' => 'nullable|numeric|min:0',
             'stock' => 'required|integer|min:0',
             'ville' => 'nullable|string',
             'commercant_id' => 'nullable|exists:commercants,id',
@@ -98,8 +96,7 @@ class ProduitUserController extends Controller
             'prix' => $validated['prix'],
             'ancien_prix' => $validated['ancien_prix'] ?? null,
             'photos' => $photos,
-            'revendable' => $validated['revendable'] == '0' ? 0 : 1,
-            'marge_revente_min' => $validated['marge_min'] ?? null,
+            'photos' => $photos,
             'quantite' => $validated['stock'],
             'ville' => $validated['ville'] ?? 'aucun',
             'commercant_id' => $user->role === 'admin' && isset($validated['commercant_id']) ? $validated['commercant_id'] : null,
@@ -162,8 +159,6 @@ class ProduitUserController extends Controller
             'old_photos.*' => 'nullable|string',
             'category_id' => 'required|exists:category_produits,id',
             'condition' => 'string|required',
-            'revendable' => 'boolean',
-            'marge_min' => 'nullable|numeric|min:0',
             'stock' => 'required|integer|min:0',
             'ville' => 'nullable|string',
             'commercant_id' => 'nullable|exists:commercants,id',
@@ -210,8 +205,7 @@ class ProduitUserController extends Controller
             'photos' => $photos,
             'condition' => $validated['condition'],
             'category_id' => $validated['category_id'],
-            'revendable' => $validated['revendable'] ?? false,
-            'marge_revente_min' => $validated['marge_min'] ?? null,
+            'category_id' => $validated['category_id'],
             'quantite' => $validated['stock'],
             'ville' => $validated['ville'] ?? 'aucun',
             'commercant_id' => $request->user()->role === 'admin' ? $validated['commercant_id'] : null,

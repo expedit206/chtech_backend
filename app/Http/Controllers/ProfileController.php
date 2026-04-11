@@ -148,7 +148,7 @@ class ProfileController extends Controller
 
         // Traiter la nouvelle photo avec Intervention Image
         $file = $request->file('photo');
-        $filename = time() . '_' . pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME) . '.jpg'; // Forcer .jpg
+        $filename = time() . '_' . pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME) . '.jpg';
         $destinationPath = public_path('storage/profile_photos');
 
         // Créer le dossier s'il n'existe pas
@@ -158,11 +158,7 @@ class ProfileController extends Controller
 
         // Compression et redimensionnement
         $image = Image::read($file)
-            // ->resize(300, 300, function ($constraint) {
-            //     $constraint->aspectRatio(); // Préserve le ratio
-            //     $constraint->upsize(); // Évite l’agrandissement
-            // })
-            ->encodeByExtension('jpg', quality: 10); // Compression à 75%
+            ->encodeByExtension('jpg', quality: 50);
 
         $image->save($destinationPath . '/' . $filename);
 
@@ -172,7 +168,47 @@ class ProfileController extends Controller
 
         return response()->json([
             'message' => 'Photo de profil mise à jour avec succès.',
-            'photo' => $photoPath, // URL complète pour l’affichage
+            'photo' => $photoPath,
+        ], 200);
+    }
+
+    /**
+     * Met à jour la bannière du profil (cover), compresse l'image et supprime l'ancienne
+     */
+    public function updateProfileCover(Request $request)
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'cover' => 'required|image|max:5120', // Limite à 5 Mo pour la bannière
+        ]);
+
+        // Supprimer l'ancienne bannière si elle existe
+        if ($user->cover && file_exists(public_path('storage/' . $user->cover))) {
+            unlink(public_path('storage/' . $user->cover));
+        }
+
+        // Traiter la nouvelle bannière
+        $file = $request->file('cover');
+        $filename = time() . '_cover_' . pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME) . '.jpg';
+        $destinationPath = public_path('storage/profile_covers');
+
+        if (!file_exists($destinationPath)) {
+            mkdir($destinationPath, 0755, true);
+        }
+
+        // Compression (un peu moins agressive pour la bannière car elle est plus grande)
+        $image = Image::read($file)
+            ->encodeByExtension('jpg', quality: 60);
+
+        $image->save($destinationPath . '/' . $filename);
+
+        $coverPath = 'profile_covers/' . $filename;
+        $user->update(['cover' => $coverPath]);
+
+        return response()->json([
+            'message' => 'Bannière mise à jour avec succès.',
+            'cover' => $coverPath,
         ], 200);
     }
 
@@ -189,6 +225,7 @@ class ProfileController extends Controller
             'id' => $user->id,
             'nom' => $user->nom,
             'photo' => $user->photo,
+            'cover' => $user->cover,
             'premium' => $user->premium,
             'created_at'=>$user->created_at,
             'subscription_ends_at' => $user->subscription_ends_at,

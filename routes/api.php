@@ -10,7 +10,6 @@ use App\Http\Controllers\JetonController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\StatsController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\ReventeController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\WalletController;
 use App\Http\Controllers\FavoriteController;
@@ -106,6 +105,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/updateProfile', [ProfileController::class, 'updateProfile']);
     Route::post('/updatePassword', [ProfileController::class, 'updatePassword']);
     Route::post('/profile/photo', [ProfileController::class, 'updateProfilePhoto']);
+    Route::post('/profile/cover', [ProfileController::class, 'updateProfileCover']);
     Route::get('/user/badges', [UserController::class, 'badges'])->name('user.badges');
     Route::get('/stats', [StatsController::class, 'index']);
 
@@ -152,15 +152,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
     Route::post('/record_view', [ProduitController::class, 'recordView']);
 
-    // Reventes (Resales)
-    Route::prefix('reventes')->group(function () {
-        Route::get('/', [ReventeController::class, 'index'])->name('reventes.index');
-        Route::get('/unread-count', [ReventeController::class, 'getUnreadCount']);
-        Route::put('/mark-all-as-read', [ReventeController::class, 'markAllAsRead']);
-        Route::get('/{id}/status', [ReventeController::class, 'status']);
-        Route::post('/{id}', [ReventeController::class, 'store']);
-        Route::put('/{id}/updateStatus', [ReventeController::class, 'update']);
-    });
+
 
     // Promotions
     Route::prefix('promotions')->group(function () {
@@ -236,18 +228,19 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/posts/{slug}/like', [\App\Http\Controllers\BlogController::class, 'toggleLike']);
     });
 
-    // Supplier Onboarding
-    Route::prefix('supplier-onboarding')->group(function () {
+    // Vendeur Onboarding
+    Route::prefix('vendeur-onboarding')->group(function () {
         Route::post('/apply', [\App\Http\Controllers\SupplierOnboardingController::class, 'store']);
         Route::get('/status', [\App\Http\Controllers\SupplierOnboardingController::class, 'status']);
     });
 
     // Orders
     Route::prefix('orders')->group(function () {
+        Route::get('/seller-stats', [App\Http\Controllers\OrderController::class, 'sellerStats']);
         Route::post('/admin-create', [App\Http\Controllers\OrderController::class, 'createFromAdmin']);
         Route::post('/', [App\Http\Controllers\OrderController::class, 'store']);
         Route::get('/', [App\Http\Controllers\OrderController::class, 'index']);
-        Route::get('/supplier', [App\Http\Controllers\OrderController::class, 'supplierOrders']);
+        Route::get('/seller', [App\Http\Controllers\OrderController::class, 'sellerOrders']);
         Route::put('/{id}/status', [App\Http\Controllers\OrderController::class, 'updateStatus']);
     });
 
@@ -257,8 +250,8 @@ Route::middleware('auth:sanctum')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::prefix('admin')->middleware('admin')->group(function () {
-        // Supplier Requests
-        Route::prefix('supplier-requests')->group(function () {
+        // Vendeur Requests
+        Route::prefix('vendeur-requests')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\SupplierRequestController::class, 'index']);
             Route::put('/{id}', [\App\Http\Controllers\Admin\SupplierRequestController::class, 'update']);
         });

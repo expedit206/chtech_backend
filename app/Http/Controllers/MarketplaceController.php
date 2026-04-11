@@ -22,7 +22,7 @@ class MarketplaceController extends Controller
                 ->where('quantite', '>', 0);
 
             // PERSONNALISATION : PLUS DE SCORE LOURD, JUSTE DU RANDOM OU FILTRES
-            $hasExplicitFilters = $request->has('categoryId') || $request->has('search') || $request->has('ville');
+            $hasExplicitFilters = $request->has('categoryId') || $request->has('search') || $request->has('ville') || $request->has('user_id');
 
             if ($hasExplicitFilters) {
                 // COMPORTEMENT NORMAL AVEC FILTRES
@@ -45,7 +45,11 @@ class MarketplaceController extends Controller
                     $query->where('ville', 'like', "%{$request->ville}%");
                 }
 
-                $query->orderBy('is_promoted', 'desc')->orderBy('created_at', 'desc');
+                if ($request->has('user_id')) {
+                    $query->where('user_id', $request->user_id);
+                }
+
+                $query->orderBy('created_at', 'desc');
             } else {
                 // AFFICHAGE ALÉATOIRE POUR LA PERFORMANCE ET LA DÉCOUVERTE
                 $query->inRandomOrder();

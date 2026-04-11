@@ -6,7 +6,6 @@ namespace App\Models;
 use Auth;
 use App\Models\User;
 use App\Models\Boost;
-use App\Models\Revente;
 
 use App\Models\ProduitCount;
 use App\Models\CategoryProduit;
@@ -39,12 +38,12 @@ class Produit extends Model
         'quantite',
         'note_moyenne',
         'nombre_avis',
-        'revendable',
+        'nombre_avis',
         'ancien_prix',
 
         'photos',
         'collaboratif',
-        'marge_revente_min',
+        'collaboratif',
         'condition',
         'original_user_id',
         'commercant_id',
@@ -86,10 +85,7 @@ class Produit extends Model
     }
 
         
-    public function reventes()
-    {
-        return $this->hasMany(Revente::class);
-    }
+
 
   
     public function category()

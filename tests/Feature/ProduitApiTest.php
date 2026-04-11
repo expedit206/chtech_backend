@@ -21,7 +21,7 @@ class ProduitApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->user = User::factory()->create(['role' => 'fournisseur']);
+        $this->user = User::factory()->create(['role' => 'vendeur']);
         $this->category = CategoryProduit::factory()->create();
     }
 

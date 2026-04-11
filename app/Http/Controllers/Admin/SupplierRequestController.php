@@ -9,9 +9,15 @@ use Illuminate\Http\Request;
 
 class SupplierRequestController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $requests = SupplierRequest::with('user')->orderBy('created_at', 'desc')->get();
+        $query = SupplierRequest::with('user')->orderBy('created_at', 'desc');
+        
+        if ($request->has('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+
+        $requests = $query->paginate(15);
         return response()->json(['success' => true, 'data' => $requests]);
     }
 
@@ -30,7 +36,7 @@ class SupplierRequestController extends Controller
 
         if ($request->status === 'approved') {
             $user = $supplierRequest->user;
-            $user->role = User::ROLE_FOURNISSEUR;
+            $user->role = User::ROLE_VENDEUR;
             $user->save();
         }
 

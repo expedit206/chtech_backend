@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Models\Boost;
 use App\Models\Message;
-use App\Models\Revente;
 use App\Models\Abonnement;
 use App\Models\Produit;
 use App\Models\Service;
@@ -25,7 +24,7 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory;
 
     const ROLE_USER = 'user';
-    const ROLE_FOURNISSEUR = 'fournisseur';
+    const ROLE_VENDEUR = 'vendeur';
     const ROLE_ADMIN = 'admin';
 
     public function isAdmin(): bool
@@ -33,10 +32,12 @@ class User extends Authenticatable
         return $this->role === self::ROLE_ADMIN;
     }
 
-    public function isFournisseur(): bool
+    public function isVendeur(): bool
     {
-        return $this->role === self::ROLE_FOURNISSEUR;
+        return $this->role === self::ROLE_VENDEUR || $this->role === 'vendeur';
     }
+
+
 
     public function isNormalUser(): bool
     {
@@ -61,6 +62,10 @@ class User extends Authenticatable
         'telephone',
         'email',
         'ville',
+        'bio',
+        'website',
+        'whatsapp',
+        'instagram',
         'mot_de_passe',
         'role',
         'premium',
@@ -68,6 +73,7 @@ class User extends Authenticatable
         'parrainage_code',
         'jetons',
         'photo',
+        'cover',
         'subscription_ends_at'
     ];
 
@@ -101,10 +107,7 @@ class User extends Authenticatable
         return $this->hasMany(Service::class);
     }
 
-    public function reventes()
-    {
-        return $this->hasMany(Revente::class);
-    }
+
 
     public function filleuls()
     {

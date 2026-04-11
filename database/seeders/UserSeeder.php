@@ -45,15 +45,15 @@ class UserSeeder extends Seeder
             ]
         );
 
-        // Fournisseur
+        // Vendeur
         User::firstOrCreate(
-            ['email' => 'fournisseur@sasayee.com'],
+            ['email' => 'vendeur@sasayee.com'],
             [
                 'nom' => 'HighTech Solutions',
                 'telephone' => '+237600000002',
                 'ville' => 'Yaoundé',
                 'mot_de_passe' => \Illuminate\Support\Facades\Hash::make('password'),
-                'role' => User::ROLE_FOURNISSEUR,
+                'role' => User::ROLE_VENDEUR,
                 'premium' => false,
             ]
         );
