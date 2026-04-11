@@ -37,6 +37,7 @@ use App\Http\Controllers\ProduitController;
 
 // Authentication
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/password/generate-token', [PasswordResetController::class, 'generateResetToken']);
 Route::post('/password/verify-token', [PasswordResetController::class, 'verifyToken']);
