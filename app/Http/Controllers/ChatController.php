@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Services\NotificationService;
 use Illuminate\Support\Facades\Broadcast;
 use App\Services\NotificationTemplateService;
+use App\Notifications\MessageNotification;
 
 class ChatController extends Controller
 {
@@ -367,6 +368,9 @@ class ChatController extends Controller
             }
 
             Log::info('MessageSent diffusé', ['message_id' => $message->id]);
+
+            // NOTIFICATION INTERNE (In-app)
+            $receiver->notify(MessageNotification::make($message, $user));
         } catch (\Exception $e) {
             Log::error('Diffusion échouée : ' . $e->getMessage());
         }

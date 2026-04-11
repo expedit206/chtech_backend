@@ -4,7 +4,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Produit;
-use App\Models\Service;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -109,73 +108,6 @@ class MarketplaceController extends Controller
             ], 500);
         }
     }
-    /**
-     * Récupère la liste des services disponibles sur la marketplace
-     */
-    public function getServices(Request $request): JsonResponse
-    {
-        try {
-            $query = Service::with(['category', 'user'])
-                ->where('disponibilite', 'disponible');
-
-            // Filtrage par catégorie
-            if ($request->has('category_id') && $request->category_id !== 'all') {
-                $query->where('id_categorie', $request->category_id);
-            }
-
-            // Filtrage par recherche
-            if ($request->has('search')) {
-                $search = $request->search;
-                $query->where(function ($q) use ($search) {
-                    $q->where('titre', 'like', "%{$search}%")
-                        ->orWhere('description', 'like', "%{$search}%")
-                        ->orWhere('competences', 'like', "%{$search}%")
-                        ->orWhereHas('category', function ($q) use ($search) {
-                            $q->where('nom', 'like', "%{$search}%");
-                        });
-                });
-            }
-
-            // Filtrage par ville
-            if ($request->has('ville')) {
-                $query->where('ville', 'like', "%{$request->ville}%");
-            }
-
-            // Tri
-            switch ($request->get('sort', 'newest')) {
-                case 'price_asc':
-                    $query->orderBy('prix', 'asc');
-                    break;
-                case 'price_desc':
-                    $query->orderBy('prix', 'desc');
-                    break;
-                case 'popular':
-                    $query->orderBy('note_moyenne', 'desc')
-                        ->orderBy('nombre_avis', 'desc');
-                    break;
-                default:
-                    $query->orderBy('created_at', 'desc');
-            }
-
-            $services = $query->simplePaginate($request->get('per_page', 24));
-
-            return response()->json([
-                'success' => true,
-                'data' => $services->items(),
-                'meta' => [
-                    'current_page' => $services->currentPage(),
-                    'per_page' => $services->perPage(),
-                    'has_more_pages' => $services->hasMorePages(),
-                ]
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur lors du chargement des services',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
 
     /**
      * Effectue une recherche globale optimisée dans les produits et services
@@ -189,7 +121,7 @@ class MarketplaceController extends Controller
             if (empty($search) || strlen($search) < 2) {
                 return response()->json([
                     'success' => true,
-                    'data' => ['products' => [], 'services' => []]
+                    'data' => ['products' => []]
                 ]);
             }
 
@@ -221,31 +153,6 @@ class MarketplaceController extends Controller
                 $results['products'] = $products;
             }
 
-            if ($type === 'all' || $type === 'services') {
-                $services = Service::with(['category', 'user'])
-                    ->where('disponibilite', 'disponible')
-                    ->where(function ($q) use ($search) {
-                        $q->where('titre', 'like', "%{$search}%")
-                            ->orWhere('description', 'like', "%{$search}%")
-                            ->orWhere('competences', 'like', "%{$search}%")
-                            ->orWhereHas('category', function ($q) use ($search) {
-                                $q->where('nom', 'like', "%{$search}%");
-                            });
-                    })
-                    // Tri par pertinence : titre d'abord
-                    ->orderByRaw("CASE 
-                        WHEN titre LIKE ? THEN 1 
-                        WHEN titre LIKE ? THEN 2 
-                        ELSE 3 END", ["{$search}", "%{$search}%"])
-                    ->limit(15)
-                    ->get()
-                    ->map(function ($item) {
-                        $item->result_type = 'service';
-                        return $item;
-                    });
-
-                $results['services'] = $services;
-            }
 
             return response()->json([
                 'success' => true,

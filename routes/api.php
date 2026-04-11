@@ -10,22 +10,18 @@ use App\Http\Controllers\JetonController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\StatsController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\WalletController;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\ParrainageController;
 use App\Http\Controllers\InteractionController;
 use App\Http\Controllers\MarketplaceController;
 use App\Http\Controllers\ProduitUserController;
-use App\Http\Controllers\ServiceUserController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\ProduitReviewController;
-use App\Http\Controllers\ServiceReviewController;
 use App\Http\Controllers\CategoryProduitController;
-use App\Http\Controllers\CategoryServiceController;
 use App\Http\Controllers\ProduitController;
 
 /*
@@ -49,13 +45,11 @@ Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallbac
 // Marketplace & Global Search
 Route::prefix('marketplace')->group(function () {
     Route::get('/produits', [MarketplaceController::class, 'getProduits']);
-    Route::get('/services', [MarketplaceController::class, 'getServices']);
     Route::get('/search', [MarketplaceController::class, 'globalSearch']);
 });
 
 // Categories
 Route::get('/produits/categories', [CategoryProduitController::class, 'index']);
-Route::get('/services/categories', [CategoryServiceController::class, 'index']);
 Route::get('/promotions/active-event', [\App\Http\Controllers\Admin\AdminProductPromotionController::class, 'getActiveEvent']);
 
 // Blog Routes
@@ -70,12 +64,6 @@ Route::prefix('blog')->group(function () {
 Route::get('/produits/{produit}', [ProduitController::class, 'show'])->name('produits.show');
 Route::post('/public-record-view', [ProduitController::class, 'publicRecordView']);
 
-Route::prefix('services')->group(function () {
-    Route::get('/', [ServiceController::class, 'index']);
-    Route::get('/search', [ServiceController::class, 'search']);
-    Route::get('/{id}', [ServiceController::class, 'show']);
-    Route::get('/{id}/getReviews', [ServiceReviewController::class, 'index']);
-});
 
 Route::prefix('produits')->group(function () {
     Route::get('/{produit}', [ProduitController::class, 'show'])->name('produits.show');
@@ -131,18 +119,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Favorites (General)
     Route::get('/favorites', [FavoriteController::class, 'index']);
 
-    // Services (Inventory Management)
-    Route::prefix('services')->group(function () {
-        Route::get('/mes-services', [ServiceUserController::class, 'mesServices']);
-        Route::post('/', [ServiceUserController::class, 'store']);
-        Route::post('/{id}', [ServiceUserController::class, 'update']);
-        Route::delete('/{id}', [ServiceUserController::class, 'destroy']);
-        Route::patch('/{id}/toggle-disponibilite', [ServiceUserController::class, 'toggleDisponibilite']);
-
-        // Service-specific Favorites & Reviews
-        Route::post('/{id}/favorite', [FavoriteController::class, 'toggleServiceFavorite']);
-        Route::post('/{id}/reviews', [ServiceReviewController::class, 'storeServiceReview']);
-    });
 
     // Product Actions
     Route::prefix('produits')->group(function () {
@@ -217,10 +193,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/tokens', [NotificationController::class, 'getUserTokens']);
     Route::post('/test-notification', [NotificationController::class, 'TestNotification']);
 
-    // Admin/Service Review Responses
-    Route::put('/service-reviews/{reviewId}', [ServiceReviewController::class, 'update']);
-    Route::delete('/service-reviews/{reviewId}', [ServiceReviewController::class, 'destroy']);
-    Route::post('/service-reviews/{reviewId}/respond', [ServiceReviewController::class, 'respond']);
+    // Notifications Internes
+    Route::prefix('notifications')->group(function () {
+        Route::get('/', [NotificationController::class, 'index']);
+        Route::put('/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::put('/mark-all-as-read', [NotificationController::class, 'markAllAsRead']);
+        Route::delete('/{id}', [NotificationController::class, 'deleteNotification']);
+    });
+
 
     // Blog Interactions
     Route::prefix('blog')->group(function () {
@@ -281,12 +261,6 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/{id}', [\App\Http\Controllers\Admin\AdminProductController::class, 'destroy']);
         });
 
-        // Services
-        Route::prefix('services')->group(function () {
-            Route::get('/', [\App\Http\Controllers\Admin\AdminServiceController::class, 'index']);
-            Route::patch('/{id}/toggle-status', [\App\Http\Controllers\Admin\AdminServiceController::class, 'toggleStatus']);
-            Route::delete('/{id}', [\App\Http\Controllers\Admin\AdminServiceController::class, 'destroy']);
-        });
 
         // Categories
         Route::prefix('categories')->group(function () {

@@ -18,8 +18,7 @@ class StatsController extends Controller
         // Calcul du nombre de parrainages actifs (filleuls ayant des produits)
         $parrainages = User::where('parrain_id', $user->id)
             ->where(function($q) {
-                $q->whereHas('produits')
-                  ->orWhereHas('services');
+                $q->whereHas('produits');
             })
             ->count();
 

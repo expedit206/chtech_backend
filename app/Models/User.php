@@ -6,22 +6,20 @@ use App\Models\Boost;
 use App\Models\Message;
 use App\Models\Abonnement;
 use App\Models\Produit;
-use App\Models\Service;
-use App\Models\NiveauUser;
-use App\Models\Parrainage;
 use App\Models\DeviceToken;
-use Illuminate\Support\Str;
-use App\Models\ServiceInteraction;
 use App\Models\JetonTransaction;
+use App\Models\Parrainage;
+use App\Models\NiveauUser;
 use Laravel\Sanctum\HasApiTokens;
 use App\Models\ProduitInteraction;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Notifications\Notifiable;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory;
+    use HasApiTokens, HasFactory, Notifiable;
 
     const ROLE_USER = 'user';
     const ROLE_VENDEUR = 'vendeur';
@@ -102,10 +100,6 @@ class User extends Authenticatable
         return $this->hasMany(Produit::class);
     }
 
-    public function services()
-    {
-        return $this->hasMany(Service::class);
-    }
 
 
 
@@ -160,46 +154,16 @@ class User extends Authenticatable
 
     public function favoris_count()
     {
-        return $this->hasMany(ProductFavorite::class)->count();
+        return $this->hasMany(ProduitInteraction::class)->where('type', 'favori')->count();
     }
 
     //favoris
     public function favoris()
     {
-        return $this->hasMany(ProductFavorite::class);
+        return $this->hasMany(ProduitInteraction::class)->where('type', 'favori');
     }
     
     
-    ///serviceFavorites
-
-    public function serviceFavorites(){
-        return $this->hasMany(ServiceInteraction::class);
-    }
-
-    public function hasFavoritedService($serviceId): bool
-    {
-        return $this->serviceFavorites()
-                    ->where('service_id', $serviceId)
-                    ->where('type', 'favori')
-                    ->exists();
-    }
-
-    public function removeFavoriteService($serviceId): bool
-    {
-        return $this->serviceFavorites()
-                    ->where('service_id', $serviceId)
-                    ->where('type', 'favori')
-                    ->delete() > 0;
-    }
-
-    public function addFavoriteService($serviceId)
-    {
-        return ServiceInteraction::create([
-            'user_id' => $this->id,
-            'service_id' => $serviceId,
-            'type' => 'favori'
-        ]);
-    }
     
     
     ///produitFavorites

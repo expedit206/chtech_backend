@@ -4,12 +4,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Produit;
-use App\Models\Service;
-use App\Models\Promotion;
-use App\Models\ProduitCount;
-use Illuminate\Http\Request;
 use App\Models\ProduitInteraction;
-use App\Models\ServiceInteraction;
 use App\Http\Controllers\Controller;
 use App\Services\InteractionService;
 use Illuminate\Support\Facades\Auth;
@@ -37,13 +32,13 @@ class InteractionController extends Controller
 
         $validator = $request->validate([
             'content_id' => 'required|string',
-            'content_type' => 'required|in:produit,service',
+            'content_type' => 'required|in:produit',
             'type' => 'required|in:clic,favori,contact,partage',
             'metadata' => 'nullable|array'
         ]);
 
         try {
-            $model = $request->content_type == 'produit' ? ProduitInteraction::class : ServiceInteraction::class;
+            $model = ProduitInteraction::class;
             $alreadyFavorited = $model::where('user_id', auth()->id())
                 ->where($request->content_type . '_id', $request->content_id)
                 ->where('type', 'favori')->exists();
@@ -147,7 +142,7 @@ class InteractionController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'content_type' => 'required|in:produit,service',
+            'content_type' => 'required|in:produit',
             'type' => 'nullable|in:clic,favori,contact,partage',
             'limit' => 'nullable|integer|max:100'
         ]);
@@ -225,9 +220,7 @@ class InteractionController extends Controller
      */
     private function updateContentInteractionCount($contentId, $contentType, $interactionType)
     {
-        $model = $contentType === 'produit'
-            ? \App\Models\Produit::class
-            : \App\Models\Service::class;
+        $model = \App\Models\Produit::class;
 
         $content = $model::find($contentId);
         if (!$content) return;

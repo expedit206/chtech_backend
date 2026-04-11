@@ -61,6 +61,16 @@ class ProduitController extends Controller
                 ->where('category_id', $produit->category_id)
                 ->where('id', '!=', $produit->id)
                 ->where('est_actif', true)
+                ->latest()
+                ->limit(6)
+                ->get();
+
+            // Produits du même vendeur
+            $shopProduits = Produit::with(['user', 'category'])
+                ->where('user_id', $produit->user_id)
+                ->where('id', '!=', $produit->id)
+                ->where('est_actif', true)
+                ->latest()
                 ->limit(6)
                 ->get();
 
@@ -79,6 +89,7 @@ class ProduitController extends Controller
                     'produit' => $produit,
                     'isFavorited' => $isFavorited,
                     'similar_produits' => $similarProduits,
+                    'shop_produits' => $shopProduits,
                     'statistics' => [
                         'total_reviews' => $produit->nombre_avis
                     ]

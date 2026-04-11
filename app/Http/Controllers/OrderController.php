@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use App\Notifications\OrderNotification;
 
 class OrderController extends Controller
 {
@@ -120,7 +121,17 @@ class OrderController extends Controller
             foreach ($orderItems as $item) {
                 $item['order_id'] = $order->id;
                 OrderItem::create($item);
+                
+                // NOTIFIER LE VENDEUR
+                $seller = User::find($item['supplier_id']);
+                if ($seller) {
+                    $seller->notify(OrderNotification::forSeller($order));
+                }
             }
+
+            // NOTIFIER L'ACHETEUR
+            $buyer = Auth::user();
+            $buyer->notify(OrderNotification::make($order, 'reçue (en attente)'));
 
             return response()->json([
                 'success' => true,
@@ -188,6 +199,12 @@ class OrderController extends Controller
         }
 
         $order->save();
+
+        // NOTIFIER L'ACHETEUR DU CHANGEMENT DE STATUT
+        $buyer = $order->user;
+        if ($buyer) {
+            $buyer->notify(OrderNotification::make($order, $request->status));
+        }
 
         return response()->json([
             'success' => true,
