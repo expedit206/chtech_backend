@@ -10,8 +10,6 @@ use App\Models\ProductView;
 use Illuminate\Http\Request;
 use App\Jobs\RecordProductView;
 use App\Models\ProductFavorite;
-use App\Models\JetonTransaction;
-use App\Models\JetonsTransaction;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;

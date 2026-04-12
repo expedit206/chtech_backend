@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\JetonTransaction;
 use App\Models\User;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -12,19 +11,18 @@ use App\Models\OrderItem;
 class AdminFinanceController extends Controller
 {
     /**
-     * Get financial statistics (JetonTransactions)
+     * Get financial statistics (Orders)
      */
     public function index()
     {
+        // total_volume: somme des commandes livrées
+        $totalVolume = Order::where('status', 'delivered')->sum('total_amount');
+        
         return response()->json([
-            'total_volume' => JetonTransaction::where('statut', 'confirmé')->sum('montant_total'),
-            'total_commission' => JetonTransaction::where('statut', 'confirmé')->sum('commission_plateforme'),
-            'platform_sales' => JetonTransaction::where('type', 'platform')
-                                               ->where('statut', 'confirmé')
-                                               ->sum('montant_total'),
-            'marketplace_volume' => JetonTransaction::where('type', 'marketplace')
-                                                  ->where('statut', 'confirmé')
-                                                  ->sum('montant_total'),
+            'total_volume' => $totalVolume,
+            'total_commission' => 0, // Placeholder
+            'platform_sales' => 0,   // Placeholder
+            'marketplace_volume' => $totalVolume,
         ]);
     }
 

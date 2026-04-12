@@ -202,6 +202,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/seller-stats', [App\Http\Controllers\OrderController::class, 'sellerStats']);
         Route::get('/seller-finance', [App\Http\Controllers\OrderController::class, 'sellerFinance']);
         Route::post('/admin-create', [App\Http\Controllers\OrderController::class, 'createFromAdmin']);
+        Route::get('/{id}/facture', [App\Http\Controllers\FactureController::class, 'download']);
         Route::post('/', [App\Http\Controllers\OrderController::class, 'store']);
         Route::get('/', [App\Http\Controllers\OrderController::class, 'index']);
         Route::get('/seller', [App\Http\Controllers\OrderController::class, 'sellerOrders']);
