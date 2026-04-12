@@ -4,9 +4,7 @@
 namespace App\Services;
 
 use App\Models\ProduitInteraction;
-use App\Models\ServiceInteraction ;
 use App\Models\Produit;
-use App\Models\Service;
 use Illuminate\Support\Facades\Auth;
 
 class InteractionService
@@ -19,8 +17,8 @@ class InteractionService
         $user = Auth::user();
         if (!$user) return null;
 
-        $model = $this->getModel($contentType);
-        $foreignKey = $this->getForeignKey($contentType);
+        $model = ProduitInteraction::class;
+        $foreignKey = 'produit_id';
 
         // Mise à jour ou création
         return $model::updateOrCreate(
@@ -44,8 +42,8 @@ class InteractionService
         $user = Auth::user();
         if (!$user) return ['status' => 'error', 'message' => 'Non authentifié'];
 
-        $model = $this->getModel($contentType);
-        $foreignKey = $this->getForeignKey($contentType);
+        $model = ProduitInteraction::class;
+        $foreignKey = 'produit_id';
 
         // Vérifier si l'interaction existe
         $existing = $model::where([
@@ -87,8 +85,7 @@ class InteractionService
         $userId = $userId ?? Auth::id();
         if (!$userId) return collect();
 
-        $model = $this->getModel($contentType);
-        $query = $model::where('user_id', $userId);
+        $query = ProduitInteraction::where('user_id', $userId);
 
         if ($types) {
             if (is_array($types)) {
@@ -98,7 +95,7 @@ class InteractionService
             }
         }
 
-        return $query->with($this->getContentRelation($contentType))
+        return $query->with('produit')
                      ->orderBy('created_at', 'desc')
                      ->limit($limit)
                      ->get();
@@ -125,12 +122,9 @@ class InteractionService
         $userId = $userId ?? Auth::id();
         if (!$userId) return false;
 
-        $model = $this->getModel($contentType);
-        $foreignKey = $this->getForeignKey($contentType);
-
-        return $model::where([
+        return ProduitInteraction::where([
             'user_id' => $userId,
-            $foreignKey => $contentId,
+            'produit_id' => $contentId,
             'type' => 'favori'
         ])->exists();
     }
@@ -140,10 +134,7 @@ class InteractionService
      */
     public function getInteractionCount($contentId, $contentType, $type = null)
     {
-        $model = $this->getModel($contentType);
-        $foreignKey = $this->getForeignKey($contentType);
-
-        $query = $model::where($foreignKey, $contentId);
+        $query = ProduitInteraction::where('produit_id', $contentId);
 
         if ($type) {
             $query->where('type', $type);
@@ -161,15 +152,9 @@ class InteractionService
         if (!$userId) return collect();
 
         // Interactions produits
-        $productInteractions = InteractionProduit::where('user_id', $userId)
+        $productInteractions = ProduitInteraction::where('user_id', $userId)
             ->whereIn('type', ['favori', 'contact'])
             ->with('produit.category')
-            ->get();
-
-        // Interactions services
-        $serviceInteractions = InteractionServiceModel::where('user_id', $userId)
-            ->whereIn('type', ['favori', 'contact'])
-            ->with('service.category')
             ->get();
 
         // Collecte des catégories avec poids
@@ -186,16 +171,6 @@ class InteractionService
             }
         }
 
-        foreach ($serviceInteractions as $interaction) {
-            if ($interaction->service && $interaction->service->category) {
-                $categories->push([
-                    'id' => $interaction->service->category->id,
-                    'name' => $interaction->service->category->nom,
-                    'type' => 'service',
-                    'weight' => $this->getTypeWeight($interaction->type)
-                ]);
-            }
-        }
 
         // Regroupement et calcul du score
         return $categories->groupBy('id')->map(function ($group) {
@@ -228,37 +203,20 @@ class InteractionService
         $suggestions = collect();
 
         foreach ($preferredCategories->take(3) as $category) {
-            if ($category['type'] === 'produit') {
-                $items = Produit::where('category_id', $category['id'])
-                    ->where('user_id', '!=', $userId) // Pas ses propres produits
-                    ->inRandomOrder()
-                    ->limit(ceil($limit / 3))
-                    ->get();
-                
-                $items->each(function ($item) use (&$suggestions, $category) {
-                    $suggestions->push([
-                        'type' => 'produit',
-                        'data' => $item,
-                        'category' => $category,
-                        'relevance_score' => $category['total_weight']
-                    ]);
-                });
-            } else {
-                $items = Service::where('category_id', $category['id'])
-                    ->where('user_id', '!=', $userId)
-                    ->inRandomOrder()
-                    ->limit(ceil($limit / 3))
-                    ->get();
-                
-                $items->each(function ($item) use (&$suggestions, $category) {
-                    $suggestions->push([
-                        'type' => 'service',
-                        'data' => $item,
-                        'category' => $category,
-                        'relevance_score' => $category['total_weight']
-                    ]);
-                });
-            }
+            $items = Produit::where('category_id', $category['id'])
+                ->where('user_id', '!=', $userId)
+                ->inRandomOrder()
+                ->limit(ceil($limit / 3))
+                ->get();
+            
+            $items->each(function ($item) use (&$suggestions, $category) {
+                $suggestions->push([
+                    'type' => 'produit',
+                    'data' => $item,
+                    'category' => $category,
+                    'relevance_score' => $category['total_weight']
+                ]);
+            });
         }
 
         return $suggestions->shuffle()->take($limit);
@@ -267,22 +225,6 @@ class InteractionService
     /**
      * Méthodes helper privées
      */
-    private function getModel($contentType)
-    {
-        return $contentType === 'produit' 
-            ? ProduitInteraction::class 
-            : ServiceInteraction::class;
-    }
-
-    private function getForeignKey($contentType)
-    {
-        return $contentType === 'produit' ? 'produit_id' : 'service_id';
-    }
-
-    private function getContentRelation($contentType)
-    {
-        return $contentType === 'produit' ? 'produit' : 'service';
-    }
 
     private function getTypeWeight($type)
     {

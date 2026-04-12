@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Models\CategoryProduit;
-use App\Models\CategoryService;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Str;
@@ -16,8 +15,7 @@ class AdminCategoryController extends Controller
     public function index()
     {
         return response()->json([
-            'products' => CategoryProduit::orderBy('nom')->get(),
-            'services' => CategoryService::orderBy('nom')->get()
+            'products' => CategoryProduit::orderBy('nom')->get()
         ]);
     }
 
@@ -43,19 +41,11 @@ class AdminCategoryController extends Controller
             $imagePath = asset('storage/categories/' . $filename);
         }
 
-        if ($validated['type'] === 'product') {
-            $category = CategoryProduit::create([
-                'id' => Str::uuid(),
-                'nom' => $validated['nom'],
-                'image' => $imagePath
-            ]);
-        } else {
-            $category = CategoryService::create([
-                'id' => Str::uuid(),
-                'nom' => $validated['nom'],
-                'image' => $imagePath
-            ]);
-        }
+        $category = CategoryProduit::create([
+            'id' => Str::uuid(),
+            'nom' => $validated['nom'],
+            'image' => $imagePath
+        ]);
 
         return response()->json([
             'message' => 'Catégorie créée avec succès',
@@ -74,11 +64,7 @@ class AdminCategoryController extends Controller
             'image' => 'nullable|image|max:2048'
         ]);
 
-        if ($validated['type'] === 'product') {
-            $category = CategoryProduit::findOrFail($id);
-        } else {
-            $category = CategoryService::findOrFail($id);
-        }
+        $category = CategoryProduit::findOrFail($id);
 
         $imagePath = $category->image;
         if ($request->hasFile('image')) {
@@ -118,13 +104,7 @@ class AdminCategoryController extends Controller
      */
     public function destroy(Request $request, $id)
     {
-        $type = $request->query('type');
-        
-        if ($type === 'product') {
-            $category = CategoryProduit::findOrFail($id);
-        } else {
-            $category = CategoryService::findOrFail($id);
-        }
+        $category = CategoryProduit::findOrFail($id);
 
         $category->delete();
 

@@ -1,5 +1,4 @@
 <?php
-
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BadgeController;
 use App\Http\Controllers\BlogController;
@@ -19,16 +18,12 @@ use App\Http\Controllers\ProduitUserController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\ReventeController;
-use App\Http\Controllers\ServiceController;
-use App\Http\Controllers\ServiceReviewController;
-use App\Http\Controllers\ServiceUserController;
 use App\Http\Controllers\StatsController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WalletController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-
 /*
 |--------------------------------------------------------------------------
 | Public Routes
@@ -285,12 +280,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Blog Management
         Route::prefix('blog')->group(function () {
-            Route::get('/posts', [\App\Http\Controllers\BlogController::class, 'adminIndex']);
-            Route::post('/posts', [\App\Http\Controllers\BlogController::class, 'store']);
-            Route::post('/posts/{id}', [\App\Http\Controllers\BlogController::class, 'update']);
-            Route::delete('/posts/{id}', [\App\Http\Controllers\BlogController::class, 'destroy']);
-            Route::patch('/posts/{id}/toggle-publish', [\App\Http\Controllers\BlogController::class, 'togglePublish']);
-            Route::delete('/comments/{id}', [\App\Http\Controllers\BlogController::class, 'deleteComment']);
+            Route::get('/posts', [BlogController::class, 'adminIndex']);
+            Route::post('/posts', [BlogController::class, 'store']);
+            Route::post('/posts/{id}', [BlogController::class, 'update']);
+            Route::delete('/posts/{id}', [BlogController::class, 'destroy']);
+            Route::patch('/posts/{id}/toggle-publish', [BlogController::class, 'togglePublish']);
+            Route::delete('/comments/{id}', [BlogController::class, 'deleteComment']);
         });
 
         // Partenaires

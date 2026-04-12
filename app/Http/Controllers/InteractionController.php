@@ -3,7 +3,10 @@
 // app/Http/Controllers/Api/InteractionController.php
 namespace App\Http\Controllers;
 
+use Illuminate\Http\Request;
 use App\Models\Produit;
+use App\Models\ProduitCount;
+use App\Models\Promotion;
 use App\Models\ProduitInteraction;
 use App\Http\Controllers\Controller;
 use App\Services\InteractionService;
@@ -89,42 +92,21 @@ class InteractionController extends Controller
      */
     private function handlePromotionClick($produitId, $userId = null)
     {
-        // Vérifier si le produit a une promotion active
-        $produit = Produit::find($produitId);
-
-        if (!$produit || !$produit->is_promoted) {
-            return;
-        }
-
         // Trouver la promotion active
         $promotion = Promotion::where('produit_id', $produitId)
             ->where('status', 'active')
             ->where('remaining_clicks', '>', 0)
             ->first();
 
-        if (!$promotion) {
+        if ($promotion) {
+            $promotion->recordClick();
+        } else {
             // Si pas de promotion trouvée mais le produit est marqué comme promu, corriger
-            $produit->update(['is_promoted' => false]);
-            return;
+            $produit = Produit::find($produitId);
+            if ($produit && $produit->is_promoted) {
+                $produit->update(['is_promoted' => false]);
+            }
         }
-
-        // Enregistrer le clic promotionnel
-        $promotion->used_clicks += 1;
-        $promotion->remaining_clicks -= 1;
-
-        // Si plus de clics, terminer la promotion
-        if ($promotion->remaining_clicks <= 0) {
-            $promotion->status = 'completed';
-            $promotion->ended_at = now();
-
-            // Mettre à jour le produit
-            $produit->update([
-                'is_promoted' => false,
-                'promotion_ends_at' => null
-            ]);
-        }
-
-        $promotion->save();
     }
 
 
