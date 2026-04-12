@@ -58,17 +58,13 @@ public function verifierEmailEtAttribuerBonus(string $email, string $code)
 
 private function attribuerBonusAuParrain(Parrainage $parrainage)
 {
-    $parrain = $parrainage->parrain;
+    // L'attribution de jetons a été supprimée.
     
-    // Ajouter les tokens
-    $parrain->jetons += 1;
-    $parrain->save();
-    // Marquer le bonus comme attribué
+    // Marquer le bonus comme attribué (on garde la trace de l'activation du parrainage)
     $parrainage->update([
         'bonus_attribue' => true,
         'bonus_attribue_le' => now(),
     ]);
-
 }
 
 

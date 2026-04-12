@@ -81,21 +81,11 @@ class ParrainageController extends Controller
                 $request->code_verification
             );
 
-            // Vérifier que c'est bien le filleul qui vérifie
-            if ($parrainage->filleul_id !== $user->id) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Action non autorisée'
-                ], 403);
-            }else{
-                $user->jetons +=$parrainage->bonus_parrain;
-                $user->save();
-            }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Email vérifié avec succès ! Vous avez reçu vos jetons.',
-                'bonus_attribue' => $parrainage->bonus_parrain
+                'message' => 'Email vérifié avec succès ! Le parrainage est désormais actif.',
+                'bonus_attribue' => 0
             ]);
 
         } catch (\Exception $e) {

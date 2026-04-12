@@ -22,8 +22,8 @@ class StatsController extends Controller
             })
             ->count();
 
-        // Revenus basés sur les jetons attribués via le parrainage (exemple)
-        $revenus = $user->jetons * 10; // Hypothèse : 10 FCFA par jeton (à ajuster selon vos besoins)
+        // Les revenus basés sur les jetons ont été supprimés.
+        $revenus = 0;
 
         // Dernière connexion
         $last_login = $user->last_login ?? 'Non disponible';

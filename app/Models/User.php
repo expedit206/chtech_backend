@@ -7,7 +7,6 @@ use App\Models\Message;
 use App\Models\Abonnement;
 use App\Models\Produit;
 use App\Models\DeviceToken;
-use App\Models\JetonTransaction;
 use App\Models\Parrainage;
 use App\Models\NiveauUser;
 use Laravel\Sanctum\HasApiTokens;
@@ -69,7 +68,6 @@ class User extends Authenticatable
         'premium',
         'parrain_id',
         'parrainage_code',
-        'jetons',
         'photo',
         'cover',
         'subscription_ends_at'
@@ -116,11 +114,6 @@ class User extends Authenticatable
     public function abonnements()
     {
         return $this->hasMany(Abonnement::class);
-    }
-
-    public function jetonsTransactions()
-    {
-        return $this->hasMany(JetonTransaction::class);
     }
 
     public function boosts()

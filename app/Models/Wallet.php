@@ -40,11 +40,4 @@ class Wallet extends Model
         return $this->belongsTo(User::class);
     }
 
-    /**
-     * Définir la relation avec les offres.
-     */
-    public function jetonOffers(): HasMany
-    {
-        return $this->hasMany(JetonOffer::class);
-    }
 }

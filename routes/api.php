@@ -6,10 +6,8 @@ use App\Http\Controllers\CategoryProduitController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\InteractionController;
-use App\Http\Controllers\JetonController;
 use App\Http\Controllers\MarketplaceController;
 use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\OfferController;
 use App\Http\Controllers\ParrainageController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\ProduitController;
@@ -77,7 +75,6 @@ Route::get('/profile/public/{id}', [ProfileController::class, 'publicProfile']);
 
 // External callbacks
 Route::get('/subscription/callback', [SubscriptionController::class, 'handleCallback'])->name('subscription.callback');
-Route::get('/jeton/callback', [JetonController::class, 'handleCallback'])->name('jeton.callback');
 
 
 /*
@@ -137,22 +134,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{promotionId}/stop', [PromotionController::class, 'stop']);
     });
 
-    // Jeton Market & Transactions
-    Route::prefix('jeton')->group(function () {
-        Route::get('/market', [JetonController::class, 'index']);
-        Route::post('/market/buy/{offer_id}', [JetonController::class, 'buy']);
-        Route::post('/purchase/platform', [JetonController::class, 'purchaseFromPlatform']);
-        Route::get('/transaction/{transaction_id}/status', [JetonController::class, 'checkTransactionStatus']);
-        Route::get('/transactions/history', [JetonController::class, 'userTransactions']);
-    });
-    Route::get('/jeton_market/offers', [JetonController::class, 'index']);
-
-    Route::prefix('jeton_market')->group(function () {
-        Route::post('/offer', [OfferController::class, 'store']);
-        Route::get('/my-offers', [OfferController::class, 'myOffers']);
-        Route::put('/updateOffer/{id}', [OfferController::class, 'updateOffer']);
-        Route::delete('/deleteOffer/{id}', [OfferController::class, 'destroyOffer']);
-    });
+    // --- Système de Jetons (Misé en sourdine / Supprimé) ---
+    // Les routes jeton et jeton_market ont été retirées.
 
     // Wallet
     Route::apiResource('wallets', WalletController::class);
@@ -278,6 +261,7 @@ Route::middleware('auth:sanctum')->group(function () {
         });
 
         // Chat Broadcast
+        Route::get('/chat/broadcast', [\App\Http\Controllers\Admin\AdminChatController::class, 'index']);
         Route::post('/chat/broadcast', [\App\Http\Controllers\Admin\AdminChatController::class, 'broadcast']);
 
         // Blog Management
