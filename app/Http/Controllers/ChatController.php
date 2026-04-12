@@ -98,7 +98,7 @@ class ChatController extends Controller
         $ordersMap = collect();
         if ($productIds->isNotEmpty() && $interlocutorIds->isNotEmpty()) {
             // UNE SEULE requête JOIN au lieu de N requêtes — O(1) au lieu de O(N)
-            $orders = \App\Models\Order::select('orders.user_id', 'orders.status', 'order_items.produit_id')
+            $orders = \App\Models\Order::select('orders.id', 'orders.user_id', 'orders.status', 'order_items.produit_id')
                 ->join('order_items', 'orders.id', '=', 'order_items.order_id')
                 ->whereIn('orders.user_id', $interlocutorIds)
                 ->whereIn('order_items.produit_id', $productIds)
@@ -109,7 +109,10 @@ class ChatController extends Controller
                 $key = $order->user_id . '_' . $order->produit_id;
                 // Garder seulement le plus récent (already ordered by latest)
                 if (!$ordersMap->has($key)) {
-                    $ordersMap->put($key, $order->status);
+                    $ordersMap->put($key, [
+                        'status' => $order->status,
+                        'id' => $order->id
+                    ]);
                 }
             }
         }
@@ -125,10 +128,10 @@ class ChatController extends Controller
             $lastMessage = $lastMessages->get($lastMessageKey);
 
             // Check Order Status if product exists
-            $orderStatus = null;
+            $orderData = null;
             if ($product) {
                 $participantId = ($user->id === $raw->interlocutor_id) ? $user->id : $raw->interlocutor_id;
-                $orderStatus = $ordersMap->get($participantId . '_' . $product->id);
+                $orderData = $ordersMap->get($participantId . '_' . $product->id);
             }
 
             // 7. Déterminer le nom de la conversation (Produit - Client)
@@ -146,11 +149,13 @@ class ChatController extends Controller
                 'user_id' => $raw->interlocutor_id,
                 'product_id' => $raw->product_id,
                 'product_name' => $product ? $product->nom : null,
+                'product_price' => $product ? $product->prix : null,
                 'product_slug' => $product ? $product->slug : null,
                 'product_image' => $product && !empty($product->photos) ? $product->photos[0] : null,
                 'user_name' => $otherUser->nom,
                 'user_photo' => $otherUser->photo ?? null,
-                'order_status' => $orderStatus,
+                'order_status' => $orderData['status'] ?? null,
+                'order_id' => $orderData['id'] ?? null,
                 'name' => $displayName,
                 'profile_photo' => $product && !empty($product->photos) ? $product->photos[0] : ($otherUser->photo ?? null),
                 'last_message' => $lastMessage->content ?? '',

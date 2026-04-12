@@ -62,11 +62,12 @@ Route::prefix('blogs')->group(function () {
 
 // Public Product/Service Access
 Route::get('/produits/{produit}', [ProduitController::class, 'show'])->name('produits.show');
-Route::post('/public-record-view', [ProduitController::class, 'publicRecordView']);
 
 
 Route::prefix('produits')->group(function () {
     Route::get('/{produit}', [ProduitController::class, 'show'])->name('produits.show');
+    Route::get('/{id}/similar', [ProduitController::class, 'getSimilarProducts']);
+    Route::get('/{id}/shop', [ProduitController::class, 'getShopProducts']);
 
     Route::get('/{id}/getReviews', [ProduitReviewController::class, 'index']);
 });
@@ -126,7 +127,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{id}/reviews', [ProduitReviewController::class, 'storeProduitReview']);
         Route::get('/{id}/counts', [InteractionController::class, 'getProductInteraction']);
     });
-    Route::post('/record_view', [ProduitController::class, 'recordView']);
 
 
 
@@ -217,6 +217,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Orders
     Route::prefix('orders')->group(function () {
         Route::get('/seller-stats', [App\Http\Controllers\OrderController::class, 'sellerStats']);
+        Route::get('/seller-finance', [App\Http\Controllers\OrderController::class, 'sellerFinance']);
         Route::post('/admin-create', [App\Http\Controllers\OrderController::class, 'createFromAdmin']);
         Route::post('/', [App\Http\Controllers\OrderController::class, 'store']);
         Route::get('/', [App\Http\Controllers\OrderController::class, 'index']);
@@ -273,6 +274,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('finance')->group(function () {
             Route::get('/stats', [\App\Http\Controllers\Admin\AdminFinanceController::class, 'index']);
             Route::get('/transactions', [\App\Http\Controllers\Admin\AdminFinanceController::class, 'transactions']);
+            Route::get('/order-stats', [\App\Http\Controllers\Admin\AdminFinanceController::class, 'orderStats']);
         });
 
         // Chat Broadcast
