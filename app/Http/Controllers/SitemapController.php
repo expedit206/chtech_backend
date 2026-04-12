@@ -13,7 +13,7 @@ class SitemapController extends Controller
      */
     public function index()
     {
-        $products = Produit::where('is_active', true)->latest()->get();
+        $products = Produit::where('est_actif', true)->latest()->get();
         $categories = CategoryProduit::all();
         $baseUrl = config('app.frontend_url', 'https://sasayee.com');
 

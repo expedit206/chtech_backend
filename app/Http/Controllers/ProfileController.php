@@ -230,7 +230,6 @@ class ProfileController extends Controller
             'created_at'=>$user->created_at,
             'subscription_ends_at' => $user->subscription_ends_at,
             'produits_count' => $user->produits()->count(),
-            'services_count' => $user->services()->count(),
             'ville' => $user->ville,
             'telephone' => $user->telephone,
         ]);
