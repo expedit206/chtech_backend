@@ -12,7 +12,7 @@ class CategoryProduit extends Model
     protected $keyType = 'string';
     public $incrementing = false;
 
-    protected $fillable = ['nom', 'image', 'parent_id'];
+    protected $fillable = ['nom', 'icon', 'image', 'parent_id'];
 
     protected static function booted()
     {

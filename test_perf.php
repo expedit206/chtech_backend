@@ -23,6 +23,9 @@ $produit = Produit::with([
 ])
 ->first();
 
+$similarProduits = [];
+$shopProduits = [];
+
 if($produit) {
    $similarProduits = Produit::with(['user', 'category'])
        ->where('category_id', $produit->category_id)
@@ -30,9 +33,28 @@ if($produit) {
        ->latest()
        ->limit(6)
        ->get();
+       
+   $shopProduits = Produit::with(['user', 'category'])
+        ->where('user_id', $produit->user_id)
+        ->where('id', '!=', $produit->id)
+        ->latest()
+        ->limit(6)
+        ->get();
 }
 
-$end = microtime(true);
-$timeTaken = "Time taken: " . ($end - $start) . " seconds\n\n";
+$middle = microtime(true);
 
-file_put_contents('perf_results_utf8.txt', $timeTaken);
+// SERIALIZE TO TRIGGER APPENDS/JSON CASTING
+$json = json_encode([
+    'produit' => $produit,
+    'similar_produits' => $similarProduits,
+    'shop_produits' => $shopProduits,
+]);
+
+$end = microtime(true);
+
+$output = "DB Load Time: " . ($middle - $start) . " seconds\n";
+$output .= "Serialization Time: " . ($end - $middle) . " seconds\n";
+$output .= "Total Time: " . ($end - $start) . " seconds\n";
+
+file_put_contents('perf_results_utf8.txt', $output);

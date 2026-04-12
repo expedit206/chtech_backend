@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Models\Abonnement;
 use App\Models\Boost;
 use App\Models\DeviceToken;
-use App\Models\JetonTransaction;
 use App\Models\Message;
 use App\Models\NiveauUser;
 use App\Models\Parrainage;
@@ -70,7 +69,6 @@ class User extends Authenticatable
         'premium',
         'parrain_id',
         'parrainage_code',
-        'jetons',
         'photo',
         'cover',
         'subscription_ends_at'
@@ -117,11 +115,6 @@ class User extends Authenticatable
     public function abonnements()
     {
         return $this->hasMany(Abonnement::class);
-    }
-
-    public function jetonsTransactions()
-    {
-        return $this->hasMany(JetonTransaction::class);
     }
 
     public function boosts()

@@ -6,10 +6,8 @@ use App\Http\Controllers\CategoryProduitController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\InteractionController;
-use App\Http\Controllers\JetonController;
 use App\Http\Controllers\MarketplaceController;
 use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\OfferController;
 use App\Http\Controllers\ParrainageController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\ProduitController;
@@ -62,11 +60,12 @@ Route::prefix('blogs')->group(function () {
 
 // Public Product/Service Access
 Route::get('/produits/{produit}', [ProduitController::class, 'show'])->name('produits.show');
-Route::post('/public-record-view', [ProduitController::class, 'publicRecordView']);
 
 
 Route::prefix('produits')->group(function () {
     Route::get('/{produit}', [ProduitController::class, 'show'])->name('produits.show');
+    Route::get('/{id}/similar', [ProduitController::class, 'getSimilarProducts']);
+    Route::get('/{id}/shop', [ProduitController::class, 'getShopProducts']);
 
     Route::get('/{id}/getReviews', [ProduitReviewController::class, 'index']);
 });
@@ -76,7 +75,6 @@ Route::get('/profile/public/{id}', [ProfileController::class, 'publicProfile']);
 
 // External callbacks
 Route::get('/subscription/callback', [SubscriptionController::class, 'handleCallback'])->name('subscription.callback');
-Route::get('/jeton/callback', [JetonController::class, 'handleCallback'])->name('jeton.callback');
 
 
 /*
@@ -126,7 +124,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{id}/reviews', [ProduitReviewController::class, 'storeProduitReview']);
         Route::get('/{id}/counts', [InteractionController::class, 'getProductInteraction']);
     });
-    Route::post('/record_view', [ProduitController::class, 'recordView']);
 
 
 
@@ -137,22 +134,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{promotionId}/stop', [PromotionController::class, 'stop']);
     });
 
-    // Jeton Market & Transactions
-    Route::prefix('jeton')->group(function () {
-        Route::get('/market', [JetonController::class, 'index']);
-        Route::post('/market/buy/{offer_id}', [JetonController::class, 'buy']);
-        Route::post('/purchase/platform', [JetonController::class, 'purchaseFromPlatform']);
-        Route::get('/transaction/{transaction_id}/status', [JetonController::class, 'checkTransactionStatus']);
-        Route::get('/transactions/history', [JetonController::class, 'userTransactions']);
-    });
-    Route::get('/jeton_market/offers', [JetonController::class, 'index']);
-
-    Route::prefix('jeton_market')->group(function () {
-        Route::post('/offer', [OfferController::class, 'store']);
-        Route::get('/my-offers', [OfferController::class, 'myOffers']);
-        Route::put('/updateOffer/{id}', [OfferController::class, 'updateOffer']);
-        Route::delete('/deleteOffer/{id}', [OfferController::class, 'destroyOffer']);
-    });
+    // --- Système de Jetons (Misé en sourdine / Supprimé) ---
+    // Les routes jeton et jeton_market ont été retirées.
 
     // Wallet
     Route::apiResource('wallets', WalletController::class);
@@ -217,7 +200,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Orders
     Route::prefix('orders')->group(function () {
         Route::get('/seller-stats', [App\Http\Controllers\OrderController::class, 'sellerStats']);
+        Route::get('/seller-finance', [App\Http\Controllers\OrderController::class, 'sellerFinance']);
         Route::post('/admin-create', [App\Http\Controllers\OrderController::class, 'createFromAdmin']);
+        Route::get('/{id}/facture', [App\Http\Controllers\FactureController::class, 'download']);
         Route::post('/', [App\Http\Controllers\OrderController::class, 'store']);
         Route::get('/', [App\Http\Controllers\OrderController::class, 'index']);
         Route::get('/seller', [App\Http\Controllers\OrderController::class, 'sellerOrders']);
@@ -273,9 +258,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('finance')->group(function () {
             Route::get('/stats', [\App\Http\Controllers\Admin\AdminFinanceController::class, 'index']);
             Route::get('/transactions', [\App\Http\Controllers\Admin\AdminFinanceController::class, 'transactions']);
+            Route::get('/order-stats', [\App\Http\Controllers\Admin\AdminFinanceController::class, 'orderStats']);
         });
 
         // Chat Broadcast
+        Route::get('/chat/broadcast', [\App\Http\Controllers\Admin\AdminChatController::class, 'index']);
         Route::post('/chat/broadcast', [\App\Http\Controllers\Admin\AdminChatController::class, 'broadcast']);
 
         // Blog Management

@@ -14,6 +14,19 @@ use Illuminate\Support\Facades\Log;
 class AdminChatController extends Controller
 {
     /**
+     * Liste des messages de diffusion passés
+     */
+    public function index()
+    {
+        $broadcasts = \App\Models\BroadcastMessage::with('sender')
+            ->orderBy('created_at', 'desc')
+            ->limit(20)
+            ->get();
+
+        return response()->json($broadcasts);
+    }
+
+    /**
      * Envoyer un message à tous les utilisateurs (Broadcast)
      */
     public function broadcast(Request $request)
@@ -21,47 +34,45 @@ class AdminChatController extends Controller
         $admin = $request->user();
         
         $validated = $request->validate([
-            'content' => 'required|string|max:1000',
-            'type' => 'nullable|string|in:text,image,audio',
-            'image' => 'nullable|image|max:5120',
+            'title' => 'required|string|max:150',
+            'message' => 'required|string|max:2000',
+            'type' => 'nullable|string|max:50',
         ]);
 
-        $content = $validated['content'];
-        $type = $validated['type'] ?? 'text';
+        $title = $validated['title'];
+        $message = $validated['message'];
+        $type = $validated['type'] ?? 'info';
         
-        // Gestion de l'image
-        if ($request->hasFile('image')) {
-            $file = $request->file('image');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $file->move(public_path('storage/messages/images'), $filename);
-            $content = asset('storage/messages/images/' . $filename);
-            $type = 'image';
-        }
+        // Concaténer le titre et le message pour le stockage dans 'content'
+        // Format: [TITRE] Message
+        $fullContent = "[" . $title . "] " . $message;
 
         // 1. Créer le message de diffusion unique dans la BD
         $broadcastMessage = \App\Models\BroadcastMessage::create([
             'sender_id' => $admin->id,
-            'content' => $content,
+            'content' => $fullContent,
             'type' => $type,
             'is_active' => true
         ]);
 
-        // 2. (Optionnel) Envoyer les notifications PUSH à tout le monde
-        // Pour éviter de bloquer le serveur, idéalement ceci devrait être dans un Job (Queue)
-        // On va le faire ici pour l'instant mais de manière légère (sans création de Message)
-        
+        // 2. Envoyer une notification réelle à tous les utilisateurs
+        // On récupère tous les IDs sauf l'admin pour l'envoi
         $users = User::where('id', '!=', $admin->id)->get();
-        $count = $users->count();
+        
+        // On utilise le NotificationService ou directement Laravel Notifications
+        // Pour faire simple et efficace ici, on crée une notification système pour chacun
+        foreach ($users as $user) {
+            $user->notify(new \App\Notifications\BaseNotification(
+                $title,
+                $message,
+                ['broadcast_id' => $broadcastMessage->id],
+                $type
+            ));
+        }
 
-        // On peut lancer un job ici, ou itérer si pas trop d'utilisateurs.
-        // Simulons l'envoi de notif simple
-        
-        // Note: Pour que le message apparaisse en temps réel, on pourrait émettre un event global
-        // broadcast(new GlobalBroadcastMessage($broadcastMessage))->toOthers();
-        
         return response()->json([
-            'message' => 'Message de diffusion créé avec succès.',
-            'count' => $count,
+            'message' => 'Message de diffusion envoyé avec succès.',
+            'count' => $users->count(),
             'data' => $broadcastMessage
         ]);
     }

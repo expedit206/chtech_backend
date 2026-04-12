@@ -76,28 +76,42 @@ class BlogController extends Controller
     public function store(Request $request)
     {
         $rules = [
-            'title' => 'required_without:titre|string|max:255',
-            'titre' => 'required_without:title|string|max:255',
-            'content' => 'required_without:contenu|string',
-            'contenu' => 'required_without:content|string',
+            'title' => 'required|string|max:255',
+            'content' => 'required|string',
             'excerpt' => 'nullable|string',
-            'extrait' => 'nullable|string',
             'is_published' => 'sometimes'
         ];
 
+        // Advanced image validation: handle both file and URL string
+        $imageRules = ['nullable'];
         if ($request->hasFile('image')) {
-            $rules['image'] = 'image|mimes:jpg,jpeg,png,webp|max:5120';
-        } else {
-            $rules['image'] = 'nullable|string';
+            $imageRules[] = 'image';
+            $imageRules[] = 'mimes:jpg,jpeg,png,webp,gif';
+            $imageRules[] = 'max:10240';
+        } elseif ($request->has('image') && is_string($request->image) && !empty($request->image)) {
+            $imageRules[] = 'url';
         }
+        $rules['image'] = $imageRules;
 
+        // Same for video
+        $videoRules = ['nullable'];
         if ($request->hasFile('video')) {
-            $rules['video'] = 'mimetypes:video/mp4,video/quicktime,video/x-msvideo|max:51200';
-        } else {
-            $rules['video'] = 'nullable|string';
+            $videoRules[] = 'mimetypes:video/mp4,video/quicktime,video/x-msvideo';
+            $videoRules[] = 'max:102400';
+        } elseif ($request->has('video') && is_string($request->video) && !empty($request->video)) {
+            $videoRules[] = 'url';
         }
+        $rules['video'] = $videoRules;
 
-        $request->validate($rules);
+        $request->validate($rules, [
+            'image.image' => "Le fichier doit être une image.",
+            'image.mimes' => "L'image doit être au format jpg, jpeg, png, webp ou gif.",
+            'image.max' => "L'image ne doit pas dépasser 10 Mo.",
+            'image.url' => "Le lien de l'image doit être une URL valide.",
+            'video.url' => "Le lien de la vidéo doit être une URL valide.",
+            'title.required' => "Le titre est obligatoire.",
+            'content.required' => "Le contenu est obligatoire.",
+        ]);
 
         $imageUrl = $request->has('image') && is_string($request->image) ? $request->image : null;
         if ($request->hasFile('image')) {
@@ -150,27 +164,37 @@ class BlogController extends Controller
         
         $rules = [
             'title' => 'nullable|string|max:255',
-            'titre' => 'nullable|string|max:255',
             'content' => 'nullable|string',
-            'contenu' => 'nullable|string',
             'excerpt' => 'nullable|string',
-            'extrait' => 'nullable|string',
             'is_published' => 'sometimes'
         ];
 
+        $imageRules = ['nullable'];
         if ($request->hasFile('image')) {
-            $rules['image'] = 'image|mimes:jpg,jpeg,png,webp|max:5120';
-        } else {
-            $rules['image'] = 'nullable|string';
+            $imageRules[] = 'image';
+            $imageRules[] = 'mimes:jpg,jpeg,png,webp,gif';
+            $imageRules[] = 'max:10240';
+        } elseif ($request->has('image') && is_string($request->image) && !empty($request->image)) {
+            $imageRules[] = 'url';
         }
+        $rules['image'] = $imageRules;
 
+        $videoRules = ['nullable'];
         if ($request->hasFile('video')) {
-            $rules['video'] = 'mimetypes:video/mp4,video/quicktime,video/x-msvideo|max:51200';
-        } else {
-            $rules['video'] = 'nullable|string';
+            $videoRules[] = 'mimetypes:video/mp4,video/quicktime,video/x-msvideo';
+            $videoRules[] = 'max:102400';
+        } elseif ($request->has('video') && is_string($request->video) && !empty($request->video)) {
+            $videoRules[] = 'url';
         }
+        $rules['video'] = $videoRules;
 
-        $request->validate($rules);
+        $request->validate($rules, [
+            'image.image' => "Le fichier doit être une image.",
+            'image.mimes' => "L'image doit être au format jpg, jpeg, png, webp ou gif.",
+            'image.max' => "L'image ne doit pas dépasser 10 Mo.",
+            'image.url' => "Le lien de l'image doit être une URL valide.",
+            'video.url' => "Le lien de la vidéo doit être une URL valide.",
+        ]);
 
         if ($request->hasFile('image')) {
             $file = $request->file('image');

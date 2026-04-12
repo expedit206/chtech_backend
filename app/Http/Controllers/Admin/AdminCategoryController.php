@@ -6,6 +6,7 @@ use App\Models\CategoryProduit;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Cache;
 
 class AdminCategoryController extends Controller
 {
@@ -46,6 +47,9 @@ class AdminCategoryController extends Controller
             'nom' => $validated['nom'],
             'image' => $imagePath
         ]);
+
+        // Invalider le cache des catégories
+        Cache::forget('category_produits_list');
 
         return response()->json([
             'message' => 'Catégorie créée avec succès',
@@ -93,6 +97,9 @@ class AdminCategoryController extends Controller
             'image' => $imagePath
         ]);
 
+        // Invalider le cache des catégories
+        Cache::forget('category_produits_list');
+
         return response()->json([
             'message' => 'Catégorie mise à jour avec succès',
             'category' => $category
@@ -107,6 +114,9 @@ class AdminCategoryController extends Controller
         $category = CategoryProduit::findOrFail($id);
 
         $category->delete();
+
+        // Invalider le cache des catégories
+        Cache::forget('category_produits_list');
 
         return response()->json(['message' => 'Catégorie supprimée avec succès']);
     }

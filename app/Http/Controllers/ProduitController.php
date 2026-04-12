@@ -10,8 +10,6 @@ use App\Models\ProductView;
 use Illuminate\Http\Request;
 use App\Jobs\RecordProductView;
 use App\Models\ProductFavorite;
-use App\Models\JetonTransaction;
-use App\Models\JetonsTransaction;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -31,15 +29,15 @@ class ProduitController extends Controller
      */
     public function show($id, Request $request): JsonResponse
     {
-        try {
-            // Check if $id contains a dashed slug and UUID format (e.g., my-product-123e4567-e89b-12d3-a456-426614174000)
-            $numericId = $id;
-            if (preg_match('/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/i', $id, $matches)) {
-                $numericId = $matches[1];
-            }
+        // Check if $id contains a dashed slug and UUID format (e.g., my-product-123e4567-e89b-12d3-a456-426614174000)
+        $numericId = $id;
+        if (preg_match('/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/i', $id, $matches)) {
+            $numericId = $matches[1];
+        }
 
-            // Récupérer l'utilisateur via le guard sanctum sans bloquer si absent
-            $user = $request->user('sanctum');
+        // Récupérer l'utilisateur via le guard sanctum sans bloquer si absent
+        $user = $request->user('sanctum');
+
 
             $produit = Produit::with([
                 'user:id,nom,email,telephone,photo,created_at',
@@ -56,26 +54,34 @@ class ProduitController extends Controller
             ->orWhere('slug', $id)
             ->firstOrFail();
 
-            // Produits similaires (même catégorie, exclure le produit actuel)
-            $similarProduits = Produit::with(['user', 'category'])
-                ->where('category_id', $produit->category_id)
-                ->where('id', '!=', $produit->id)
-                ->where('est_actif', true)
-                ->latest()
-                ->limit(6)
-                ->get();
+            // Enregistrement de la vue au moment où le détail est ouvert
+            $userId = $user ? $user->id : null;
+            
+            $counts = $produit->counts()->first();
+            if ($counts) {
+                $counts->increment('clics_count');
+            } else {
+                $produit->counts()->create(['clics_count' => 1]);
+            }
 
-            // Produits du même vendeur
-            $shopProduits = Produit::with(['user', 'category'])
-                ->where('user_id', $produit->user_id)
-                ->where('id', '!=', $produit->id)
-                ->where('est_actif', true)
-                ->latest()
-                ->limit(6)
-                ->get();
+            if ($userId) {
+                // Utilisateur connecté : on s'assure qu'on ne compte pas sa vue en double (optionnel ou selon la logique)
+                $existingView = \App\Models\ProductView::where('produit_id', $produit->id)
+                    ->where('user_id', $userId)
+                    ->first();
 
+                if (!$existingView) {
+                    \App\Models\ProductView::create([
+                        'produit_id' => $produit->id,
+                        'user_id' => $userId,
+                    ]);
+                }
+            }
+
+            // Les produits similaires et de la boutique seront chargés de façon asynchrone (Lazy Loading)
             // Vérifier si favori (seulement si utilisateur connecté)
             $isFavorited = false;
+            $userId = $user ? $user->id : null;
             if ($user) {
                 $isFavorited = \App\Models\ProduitInteraction::where('produit_id', $produit->id)
                     ->where('user_id', $user->id)
@@ -83,102 +89,63 @@ class ProduitController extends Controller
                     ->exists();
             }
 
+            // Calculer les comptes d'interactions pour éviter une requête HTTP front-end supplémentaire
+            $interactionCounts = [
+                'clics_count' => $produit->counts ? $produit->counts->clics_count : 0,
+                'favorites_count' => \App\Models\ProduitInteraction::where('produit_id', $produit->id)->where('type', 'favori')->count(),
+                'partages_count' => \App\Models\ProduitInteraction::where('produit_id', $produit->id)->where('type', 'partage')->count(),
+                'contacts_count' => \App\Models\ProduitInteraction::where('produit_id', $produit->id)->where('type', 'contact')->count(),
+            ];
+
             return response()->json([
                 'success' => true,
                 'data' => [
                     'produit' => $produit,
                     'isFavorited' => $isFavorited,
-                    'similar_produits' => $similarProduits,
-                    'shop_produits' => $shopProduits,
+                    'counts' => $interactionCounts,
                     'statistics' => [
                         'total_reviews' => $produit->nombre_avis
                     ]
                 ]
             ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => "Produit non trouvé ou erreur : " . $e->getMessage()
-            ], 404);
-        }
     }
 
     /**
-     * Enregistre une vue pour un produit (visiteur public)
+     * Récupérer les produits similaires (Lazy loaded)
      */
-   public function publicRecordView(Request $request)
+    public function getSimilarProducts($id)
     {
-        $validated = $request->validate([
-            'product_id' => 'required|exists:produits,id',
-        ]);
+        $produit = Produit::findOrFail($id);
+        
+        $similarProduits = Produit::with(['user', 'category'])
+            ->where('category_id', $produit->category_id)
+            ->where('id', '!=', $produit->id)
+            ->where('est_actif', true)
+            ->latest()
+            ->limit(6)
+            ->get();
 
-        $produitId = $validated['product_id'];
-        $produit = Produit::findOrFail($produitId);
-
-        // Incrémenter views_count pour les non-connectés
-        $produit->counts()->updateOrCreate(
-            ['produit_id' => $produitId],
-            ['views_count' => DB::raw('views_count + 1')]
-        );
-
-        return response()->json(['message' => 'Vue enregistrée']);
+        return response()->json(['success' => true, 'data' => $similarProduits]);
     }
 
     /**
-     * Enregistre ou met à jour une vue pour un produit (utilisateur connecté)
+     * Récupérer les produits du même vendeur (Lazy loaded)
      */
-    public function recordView(Request $request)
+    public function getShopProducts($id)
     {
+        $produit = Produit::findOrFail($id);
+        
+        $shopProduits = Produit::with(['user', 'category'])
+            ->where('user_id', $produit->user_id)
+            ->where('id', '!=', $produit->id)
+            ->where('est_actif', true)
+            ->latest()
+            ->limit(6)
+            ->get();
 
-        $validated = $request->validate([
-            'product_id' => 'required|exists:produits,id',
-            'user_id' => 'nullable|exists:users,id',
-        ]);
-
-        // return response()->json(['message' => $request->all()]);
-
-
-        $produitId = $validated['product_id'];
-        $userId = $validated['user_id'] ?? null;
-        $produit = Produit::findOrFail($produitId);
-
-        if (!$request->user()) {
-
-            $produit->counts()->updateOrCreate(
-                ['produit_id' => $produitId],
-                ['views_count' => DB::raw('views_count + 1')]
-            );
-
-            return response()->json([
-                'message' => 'Vue enregistrée1',
-                'user' => $request->all()
-            ]);
-        }
-        // Vérifier si l'utilisateur a déjà vu ce produit
-        $existingView = ProductView::where('produit_id', $produitId)
-            ->where('user_id', $userId)
-            ->first();
-
-        if (!$existingView) {
-            // Nouvelle vue, incrémenter views_count et enregistrer dans product_views
-            $produit->counts()->updateOrCreate(
-                ['produit_id' => $produitId],
-                ['views_count' => DB::raw('views_count + 1')]
-            );
-
-            ProductView::create([
-                'produit_id' => $produitId,
-                'user_id' => $userId,
-            ]);
-
-            return response()->json(['message' => 'Vue enregistrée']);
-        } else {
-            // Vue déjà enregistrée
-            return response()->json(['message' => 'Vue déjà enregistrée'], 200);
-        }
+        return response()->json(['success' => true, 'data' => $shopProduits]);
     }
 
 
-    
+
 }

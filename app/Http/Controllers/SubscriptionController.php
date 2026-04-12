@@ -116,9 +116,6 @@ class SubscriptionController extends Controller
                     'date_transaction' => now(),
                 ]);
 
-                // Ajouter les jetons
-                $user->jetons += 30;
-                $user->save();
 
                 // Activer premium
                 $subscriptionType = $premiumTransaction->type_abonnement === 'mensuel' ? 'monthly' : 'yearly';
@@ -294,9 +291,6 @@ class SubscriptionController extends Controller
         try {
             $user = $transaction->user;
 
-            // Ajouter les jetons bonus
-            $jetonsBonus = 30;
-            $user->increment('jetons', $jetonsBonus);
 
             // Activer premium
             $subscriptionType = $transaction->type_abonnement === 'mensuel' ? 'monthly' : 'yearly';

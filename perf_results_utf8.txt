@@ -1,2 +1,3 @@
-Time taken: 0.35506987571716 seconds
-
+DB Load Time: 0.14686918258667 seconds
+Serialization Time: 0.013101816177368 seconds
+Total Time: 0.15997099876404 seconds
