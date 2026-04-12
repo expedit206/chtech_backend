@@ -75,16 +75,31 @@ class BlogController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'title' => 'required|string|max:255',
-            'content' => 'required|string',
+        $rules = [
+            'title' => 'required_without:titre|string|max:255',
+            'titre' => 'required_without:title|string|max:255',
+            'content' => 'required_without:contenu|string',
+            'contenu' => 'required_without:content|string',
             'excerpt' => 'nullable|string',
-            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
-            'video' => 'nullable|mimetypes:video/mp4,video/quicktime,video/x-msvideo|max:51200', // 50MB
-            'is_published' => 'boolean'
-        ]);
+            'extrait' => 'nullable|string',
+            'is_published' => 'sometimes'
+        ];
 
-        $imageUrl = null;
+        if ($request->hasFile('image')) {
+            $rules['image'] = 'image|mimes:jpg,jpeg,png,webp|max:5120';
+        } else {
+            $rules['image'] = 'nullable|string';
+        }
+
+        if ($request->hasFile('video')) {
+            $rules['video'] = 'mimetypes:video/mp4,video/quicktime,video/x-msvideo|max:51200';
+        } else {
+            $rules['video'] = 'nullable|string';
+        }
+
+        $request->validate($rules);
+
+        $imageUrl = $request->has('image') && is_string($request->image) ? $request->image : null;
         if ($request->hasFile('image')) {
             $file = $request->file('image');
             $filename = time() . '_img_' . $file->getClientOriginalName();
@@ -92,7 +107,7 @@ class BlogController extends Controller
             $imageUrl = asset('storage/blog/' . $filename);
         }
 
-        $videoUrl = null;
+        $videoUrl = $request->has('video') && is_string($request->video) ? $request->video : null;
         if ($request->hasFile('video')) {
             $file = $request->file('video');
             $filename = time() . '_vid_' . $file->getClientOriginalName();
@@ -100,16 +115,24 @@ class BlogController extends Controller
             $videoUrl = asset('storage/blog/videos/' . $filename);
         }
 
+        $title = $request->input('title') ?? $request->input('titre');
+        $content = $request->input('content') ?? $request->input('contenu');
+        $excerpt = $request->input('excerpt') ?? $request->input('extrait');
+        $isPublished = false;
+        if ($request->has('is_published')) {
+            $isPublished = filter_var($request->is_published, FILTER_VALIDATE_BOOLEAN);
+        }
+
         $post = Post::create([
-            'title' => $request->title,
-            'slug' => Str::slug($request->title) . '-' . uniqid(),
-            'content' => $request->content,
-            'excerpt' => $request->excerpt,
+            'title' => $title,
+            'slug' => Str::slug($title) . '-' . uniqid(),
+            'content' => $content,
+            'excerpt' => $excerpt,
             'image' => $imageUrl,
             'video' => $videoUrl,
-            'is_published' => $request->is_published ?? false,
-            'published_at' => ($request->is_published ?? false) ? now() : null,
-            'author_id' => $request->user()->id
+            'is_published' => $isPublished,
+            'published_at' => $isPublished ? now() : null,
+            'author_id' => $request->user()->getAuthIdentifier()
         ]);
 
         return response()->json([
@@ -125,20 +148,37 @@ class BlogController extends Controller
     {
         $post = Post::findOrFail($id);
         
-        $request->validate([
-            'title' => 'string|max:255',
-            'content' => 'string',
+        $rules = [
+            'title' => 'nullable|string|max:255',
+            'titre' => 'nullable|string|max:255',
+            'content' => 'nullable|string',
+            'contenu' => 'nullable|string',
             'excerpt' => 'nullable|string',
-            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
-            'video' => 'nullable|mimetypes:video/mp4,video/quicktime,video/x-msvideo|max:51200',
-            'is_published' => 'boolean'
-        ]);
+            'extrait' => 'nullable|string',
+            'is_published' => 'sometimes'
+        ];
+
+        if ($request->hasFile('image')) {
+            $rules['image'] = 'image|mimes:jpg,jpeg,png,webp|max:5120';
+        } else {
+            $rules['image'] = 'nullable|string';
+        }
+
+        if ($request->hasFile('video')) {
+            $rules['video'] = 'mimetypes:video/mp4,video/quicktime,video/x-msvideo|max:51200';
+        } else {
+            $rules['video'] = 'nullable|string';
+        }
+
+        $request->validate($rules);
 
         if ($request->hasFile('image')) {
             $file = $request->file('image');
             $filename = time() . '_img_' . $file->getClientOriginalName();
             $file->move(public_path('storage/blog'), $filename);
             $post->image = asset('storage/blog/' . $filename);
+        } else if ($request->has('image') && is_string($request->image)) {
+            $post->image = $request->image;
         }
 
         if ($request->hasFile('video')) {
@@ -146,20 +186,25 @@ class BlogController extends Controller
             $filename = time() . '_vid_' . $file->getClientOriginalName();
             $file->move(public_path('storage/blog/videos'), $filename);
             $post->video = asset('storage/blog/videos/' . $filename);
+        } else if ($request->has('video') && is_string($request->video)) {
+            $post->video = $request->video;
         }
 
-        if ($request->has('title')) {
-            $post->title = $request->title;
-        }
+        if ($request->has('title')) $post->title = $request->input('title');
+        else if ($request->has('titre')) $post->title = $request->input('titre');
 
-        if ($request->has('content')) $post->content = $request->content;
-        if ($request->has('excerpt')) $post->excerpt = $request->excerpt;
+        if ($request->has('content')) $post->content = $request->input('content');
+        else if ($request->has('contenu')) $post->content = $request->input('contenu');
+
+        if ($request->has('excerpt')) $post->excerpt = $request->input('excerpt');
+        else if ($request->has('extrait')) $post->excerpt = $request->input('extrait');
         
         if ($request->has('is_published')) {
-            if (!$post->is_published && $request->is_published) {
+            $isPublished = filter_var($request->is_published, FILTER_VALIDATE_BOOLEAN);
+            if (!$post->is_published && $isPublished) {
                 $post->published_at = now();
             }
-            $post->is_published = $request->is_published;
+            $post->is_published = $isPublished;
         }
 
         $post->save();
@@ -232,8 +277,8 @@ class BlogController extends Controller
         $post = Post::where('slug', $slug)->firstOrFail();
         
         $comment = $post->comments()->create([
-            'user_id' => $request->user()->id,
-            'content' => $request->content
+            'user_id' => $request->user()->getAuthIdentifier(),
+            'content' => $request->input('content')
         ]);
         
         $comment->load('user');
@@ -252,14 +297,14 @@ class BlogController extends Controller
         $post = Post::where('slug', $slug)->firstOrFail();
         $user = $request->user();
 
-        $existingLike = $post->likes()->where('user_id', $user->id)->first();
+        $existingLike = $post->likes()->where('user_id', $user->getAuthIdentifier())->first();
 
         if ($existingLike) {
             $existingLike->delete();
             $liked = false;
         } else {
             $post->likes()->create([
-                'user_id' => $user->id
+                'user_id' => $user->getAuthIdentifier()
             ]);
             $liked = true;
         }

@@ -4,28 +4,25 @@ namespace App\Models;
 
 use App\Models\Boost;
 use App\Models\Message;
-use App\Models\Revente;
 use App\Models\Abonnement;
 use App\Models\Produit;
-use App\Models\Service;
-use App\Models\NiveauUser;
-use App\Models\Parrainage;
 use App\Models\DeviceToken;
-use Illuminate\Support\Str;
-use App\Models\ServiceInteraction;
 use App\Models\JetonTransaction;
+use App\Models\Parrainage;
+use App\Models\NiveauUser;
 use Laravel\Sanctum\HasApiTokens;
 use App\Models\ProduitInteraction;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Notifications\Notifiable;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory;
+    use HasApiTokens, HasFactory, Notifiable;
 
     const ROLE_USER = 'user';
-    const ROLE_FOURNISSEUR = 'fournisseur';
+    const ROLE_VENDEUR = 'vendeur';
     const ROLE_ADMIN = 'admin';
 
     public function isAdmin(): bool
@@ -33,10 +30,12 @@ class User extends Authenticatable
         return $this->role === self::ROLE_ADMIN;
     }
 
-    public function isFournisseur(): bool
+    public function isVendeur(): bool
     {
-        return $this->role === self::ROLE_FOURNISSEUR;
+        return $this->role === self::ROLE_VENDEUR || $this->role === 'vendeur';
     }
+
+
 
     public function isNormalUser(): bool
     {
@@ -61,6 +60,10 @@ class User extends Authenticatable
         'telephone',
         'email',
         'ville',
+        'bio',
+        'website',
+        'whatsapp',
+        'instagram',
         'mot_de_passe',
         'role',
         'premium',
@@ -68,6 +71,7 @@ class User extends Authenticatable
         'parrainage_code',
         'jetons',
         'photo',
+        'cover',
         'subscription_ends_at'
     ];
 
@@ -96,15 +100,8 @@ class User extends Authenticatable
         return $this->hasMany(Produit::class);
     }
 
-    public function services()
-    {
-        return $this->hasMany(Service::class);
-    }
 
-    public function reventes()
-    {
-        return $this->hasMany(Revente::class);
-    }
+
 
     public function filleuls()
     {
@@ -157,46 +154,16 @@ class User extends Authenticatable
 
     public function favoris_count()
     {
-        return $this->hasMany(ProductFavorite::class)->count();
+        return $this->hasMany(ProduitInteraction::class)->where('type', 'favori')->count();
     }
 
     //favoris
     public function favoris()
     {
-        return $this->hasMany(ProductFavorite::class);
+        return $this->hasMany(ProduitInteraction::class)->where('type', 'favori');
     }
     
     
-    ///serviceFavorites
-
-    public function serviceFavorites(){
-        return $this->hasMany(ServiceInteraction::class);
-    }
-
-    public function hasFavoritedService($serviceId): bool
-    {
-        return $this->serviceFavorites()
-                    ->where('service_id', $serviceId)
-                    ->where('type', 'favori')
-                    ->exists();
-    }
-
-    public function removeFavoriteService($serviceId): bool
-    {
-        return $this->serviceFavorites()
-                    ->where('service_id', $serviceId)
-                    ->where('type', 'favori')
-                    ->delete() > 0;
-    }
-
-    public function addFavoriteService($serviceId)
-    {
-        return ServiceInteraction::create([
-            'user_id' => $this->id,
-            'service_id' => $serviceId,
-            'type' => 'favori'
-        ]);
-    }
     
     
     ///produitFavorites

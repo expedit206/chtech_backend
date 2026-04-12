@@ -55,14 +55,13 @@ class NotificationTemplateService
     }
 
     //reventes
-// Template pour demande de revente
+    // Template pour demande de revente
     public static function reventeRequested($revente)
     {
         $productName = $revente->produit->nom ?? $revente->produit->title ?? 'produit';
         $revendeurName = $revente->revendeur->nom ?? 'Utilisateur';
-        $price = isset($revente->prix_revente) ? number_format($revente->prix_revente, 0, ',', ' ') . ' FCFA' : '';
 
-        $content = "Nouvelle demande de revente : {$revendeurName} propose de revendre « {$productName} » {$price}";
+        $content = "Nouvelle demande de revente : {$revendeurName} propose de revendre « {$productName} »";
         // Ajouter les points de suspension seulement si la longueur dépasse 100 caractères
         $body = mb_strlen($content) > 100 ? mb_substr($content, 0, 100) . '...' : $content;
 
@@ -74,7 +73,7 @@ class NotificationTemplateService
             'data' => [
                 'type' => 'revente_requested',
                 'statut' => $revente->statut ?? 'en_attente',
-                'url' => url("/reventes/{$revente->id}"),
+                // 'url' => url("/reventes/{$revente->id}"),
             ],
         ];
     }
@@ -97,13 +96,12 @@ class NotificationTemplateService
                 'revente_id' => $revente->id,
                 'produit_id' => $revente->produit_id ?? null,
                 'statut' => $revente->statut ?? null,
-                'url' => url("/reventes/{$revente->id}"),
+                // 'url' => url("/reventes/{$revente->id}"),
             ],
         ];
     }
 
-}
 
-// Utilisation
+}
 // $template = NotificationTemplateService::orderConfirmed($order);
 // $notificationService->sendToDevice($userToken, $template['notification'], $template['data']);

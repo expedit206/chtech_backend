@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use App\Notifications\OrderNotification;
 
 class OrderController extends Controller
 {
@@ -120,7 +121,17 @@ class OrderController extends Controller
             foreach ($orderItems as $item) {
                 $item['order_id'] = $order->id;
                 OrderItem::create($item);
+                
+                // NOTIFIER LE VENDEUR
+                $seller = User::find($item['supplier_id']);
+                if ($seller) {
+                    $seller->notify(OrderNotification::forSeller($order));
+                }
             }
+
+            // NOTIFIER L'ACHETEUR
+            $buyer = Auth::user();
+            $buyer->notify(OrderNotification::make($order, 'reçue (en attente)'));
 
             return response()->json([
                 'success' => true,
@@ -144,17 +155,12 @@ class OrderController extends Controller
     }
 
     /**
-     * Liste des commandes reçues par un fournisseur
+     * Liste des commandes reçues par un vendeur
      */
-    public function supplierOrders()
+    public function sellerOrders()
     {
         /** @var \App\Models\User $user */
         $user = Auth::user();
-        if (!$user->isFournisseur() && !$user->isAdmin()) {
-            return response()->json(['message' => 'Accès réservé aux fournisseurs'], 403);
-        }
-
-        // Récupérer les items de commande destinés à ce fournisseur
         $orderItems = OrderItem::where('supplier_id', $user->id)
             ->with(['order.user', 'produit'])
             ->orderBy('created_at', 'desc')
@@ -172,7 +178,7 @@ class OrderController extends Controller
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        // Vérifier si le fournisseur possède au moins un item dans cette commande
+        // Vérifier si le vendeur possède au moins un item dans cette commande
         $hasItem = OrderItem::where('order_id', $orderId)
             ->where('supplier_id', $user->id)
             ->exists();
@@ -194,10 +200,63 @@ class OrderController extends Controller
 
         $order->save();
 
+        // NOTIFIER L'ACHETEUR DU CHANGEMENT DE STATUT
+        $buyer = $order->user;
+        if ($buyer) {
+            $buyer->notify(OrderNotification::make($order, $request->status));
+        }
+
         return response()->json([
             'success' => true,
             'message' => "Statut mis à jour : {$request->status}. " .
-                ($order->payment_status === 'paid' ? "Paiement libéré au fournisseur." : "")
+                ($order->payment_status === 'paid' ? "Paiement libéré au vendeur." : "")
+        ]);
+    }
+
+    /**
+     * Statistiques de vente pour le tableau de bord vendeur
+     */
+    public function sellerStats()
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        if (!$user->isVendeur() && !$user->isAdmin()) {
+            return response()->json(['message' => 'Accès réservé aux vendeurs'], 403);
+        }
+
+        // Toutes les commandes contenant les produits du vendeur
+        $orderItems = OrderItem::where('supplier_id', $user->id)
+            ->with('order')
+            ->get();
+
+        $totalOrders = $orderItems->count();
+        $pendingOrders = $orderItems->filter(fn($item) => in_array($item->order?->status, ['pending', 'shipped']))->count();
+        $deliveredOrders = $orderItems->filter(fn($item) => $item->order?->status === 'delivered')->count();
+        $totalRevenue = $orderItems
+            ->filter(fn($item) => in_array($item->order?->status, ['delivered']) || $item->order?->payment_status === 'paid')
+            ->sum(fn($item) => $item->price * $item->quantity);
+
+        // Produits actifs de ce vendeur (stock > 0)
+        $activeProducts = \App\Models\Produit::where('user_id', $user->id)
+            ->where('quantite', '>', 0)
+            ->count();
+
+        // Vues totales des produits (depuis la table product_views)
+        $produitIds = \App\Models\Produit::where('user_id', $user->id)->pluck('id');
+        $totalViews = \Illuminate\Support\Facades\DB::table('product_views')
+            ->whereIn('produit_id', $produitIds)
+            ->count();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'total_orders' => $totalOrders,
+                'pending_orders' => $pendingOrders,
+                'delivered_orders' => $deliveredOrders,
+                'total_revenue' => $totalRevenue,
+                'active_products' => $activeProducts,
+                'total_views' => $totalViews,
+            ]
         ]);
     }
 }

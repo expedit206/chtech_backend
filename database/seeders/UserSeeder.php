@@ -34,9 +34,9 @@ class UserSeeder extends Seeder
 
         // Administrateur
         User::firstOrCreate(
-            ['email' => 'admin@chtech.com'],
+            ['email' => 'admin@sasayee.com'],
             [
-                'nom' => 'Admin CHTECH',
+                'nom' => 'Admin SASAYEE',
                 'telephone' => '+237600000001',
                 'ville' => 'Douala',
                 'mot_de_passe' => \Illuminate\Support\Facades\Hash::make('password'),
@@ -45,22 +45,22 @@ class UserSeeder extends Seeder
             ]
         );
 
-        // Fournisseur
+        // Vendeur
         User::firstOrCreate(
-            ['email' => 'fournisseur@chtech.com'],
+            ['email' => 'vendeur@sasayee.com'],
             [
                 'nom' => 'HighTech Solutions',
                 'telephone' => '+237600000002',
                 'ville' => 'Yaoundé',
                 'mot_de_passe' => \Illuminate\Support\Facades\Hash::make('password'),
-                'role' => User::ROLE_FOURNISSEUR,
+                'role' => User::ROLE_VENDEUR,
                 'premium' => false,
             ]
         );
 
         // Utilisateur Normal
         User::firstOrCreate(
-            ['email' => 'user@chtech.com'],
+            ['email' => 'user@sasayee.com'],
             [
                 'nom' => 'Jean Dupont',
                 'telephone' => '+237600000003',

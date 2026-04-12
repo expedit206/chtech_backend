@@ -138,6 +138,52 @@ class NotificationController extends Controller
 
         $token->update(['is_active' => false]);
 
-        return response()->json(['message' => 'Token disabled successfully']);
+        return response()->json(['message' => 'Token deactivated successfully']);
+    }
+
+    /**
+     * Liste toutes les notifications de l'utilisateur
+     */
+    public function index(Request $request)
+    {
+        $user = Auth::user();
+        $notifications = $user->notifications()->paginate(20);
+        
+        return response()->json([
+            'notifications' => $notifications,
+            'unread_count' => $user->unreadNotifications()->count()
+        ]);
+    }
+
+    /**
+     * Marque une notification comme lue
+     */
+    public function markAsRead($id)
+    {
+        $notification = Auth::user()->notifications()->findOrFail($id);
+        $notification->markAsRead();
+
+        return response()->json(['message' => 'Notification marquée comme lue']);
+    }
+
+    /**
+     * Marque toutes les notifications comme lues
+     */
+    public function markAllAsRead()
+    {
+        Auth::user()->unreadNotifications->markAsRead();
+
+        return response()->json(['message' => 'Toutes les notifications ont été marquées comme lues']);
+    }
+
+    /**
+     * Supprime une notification
+     */
+    public function deleteNotification($id)
+    {
+        $notification = Auth::user()->notifications()->findOrFail($id);
+        $notification->delete();
+
+        return response()->json(['message' => 'Notification supprimée']);
     }
 }

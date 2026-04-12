@@ -13,47 +13,27 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    /**
-     * Enregistre un nouvel utilisateur (avec gestion optionnelle du parrainage)
-     */
+     /**
+      * Enregistre un nouvel utilisateur
+      */
     public function register(Request $request)
     {
         $request->validate([
             'nom' => 'required|string|max:255',
             'telephone' => 'required|string|max:20|unique:users,telephone',
-            'mot_de_passe' => 'required|string|min:8', // Suppression de 'confirmed'
-            'parrain_code' => 'nullable|string|max:50|exists:users,parrainage_code',
+            'mot_de_passe' => 'required|string|min:8',
         ]);
-
-        $parrainId = null;
-        $parrain = null;
-        if ($request->parrain_code) {
-            $parrain = User::where('parrainage_code', $request->parrain_code)->first();
-            
-            $parrainId = $parrain ? $parrain->id : null;
-        }
 
         $user = User::create([
             'nom' => $request->nom,
             'telephone' => $request->telephone,
             'mot_de_passe' => Hash::make($request->mot_de_passe),
             'premium' => false,
-            'parrain_id' => $parrainId,
         ]);
 
-       $codeGenerate = $this->generateCode($user);
-       $user->parrainage_code = $codeGenerate;
-
-       $user->save();
-            if ($parrain) {
-            // Créer le parrainage (sans bonus)
-            Parrainage::create([
-                'parrain_id' => $parrain->id,
-                'filleul_id' => $user->id,
-                'statut' => 'en_attente',
-                'bonus_parrain' => 3,
-            ]);
-        }
+        $codeGenerate = $this->generateCode($user);
+        $user->parrainage_code = $codeGenerate;
+        $user->save();
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -123,13 +103,10 @@ class AuthController extends Controller
     {
         $driver = Socialite::driver('google')->stateless();
 
-        // Build state with action and parrain_code
+        // Build state with action
         $state = [];
         if ($request->query('action')) {
             $state['action'] = $request->query('action');
-        }
-        if ($request->query('parrain_code')) {
-            $state['parrain_code'] = $request->query('parrain_code');
         }
 
         // Get the redirect URL from Socialite
@@ -156,26 +133,12 @@ class AuthController extends Controller
         try {
             $googleUser = Socialite::driver('google')->stateless()->user();
 
-            // Extract action and parrain_code from state
-            $parrainCode = null;
             if ($request->state) {
                 parse_str(urldecode($request->state), $stateParams);
                 $action = $stateParams['action'] ?? 'login';
-                $parrainCode = $stateParams['parrain_code'] ?? null;
-            }
-
-            // Validate parrain_code if provided
-            if ($parrainCode) {
-                $request->validate([
-                    'parrain_code' => 'string|max:50|exists:users,parrainage_code',
-                ], ['parrain_code' => $parrainCode]);
             }
 
             $parrainId = null;
-            if ($parrainCode) {
-                $parrain = User::where('parrainage_code', $parrainCode)->first();
-                $parrainId = $parrain ? $parrain->id : null;
-            }
 
             // Find user
             $user = User::where('google_id', $googleUser->id)
@@ -203,11 +166,10 @@ class AuthController extends Controller
                 // Login mode: redirect if no user
                 if (!$user) {
                     $frontendUrl = env('FRONTEND_URL', 'http://localhost:4000') . '/register';
-                    return redirect()->away($frontendUrl . '?error=' . urlencode('Aucun compte trouvé. Veuillez vous inscrire.') . ($parrainCode ? '&parrain_code=' . urlencode($parrainCode) : ''));
+                    return redirect()->away($frontendUrl . '?error=' . urlencode('Aucun compte trouvé. Veuillez vous inscrire.'));
                 } elseif (!$user->google_id) {
                     $user->update([
                         'google_id' => $googleUser->id, 
-                        'parrain_id' => $parrainId
                     ]);
                 }
             }

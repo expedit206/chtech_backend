@@ -6,7 +6,6 @@ namespace App\Models;
 use Auth;
 use App\Models\User;
 use App\Models\Boost;
-use App\Models\Revente;
 
 use App\Models\ProduitCount;
 use App\Models\CategoryProduit;
@@ -15,6 +14,8 @@ use App\Models\ProduitInteraction;
 use App\Traits\InteractionService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+
+use Illuminate\Support\Str;
 
 class Produit extends Model
 {
@@ -30,22 +31,47 @@ class Produit extends Model
         'user_id',
         'category_id',
         'nom',
+        'slug',
         'ville',
         'description',
         'prix',
         'quantite',
         'note_moyenne',
         'nombre_avis',
-        'revendable',
+        'nombre_avis',
         'ancien_prix',
 
         'photos',
         'collaboratif',
-        'marge_revente_min',
+        'collaboratif',
         'condition',
         'original_user_id',
         'commercant_id',
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($produit) {
+            if (empty($produit->slug)) {
+                $produit->slug = static::generateUniqueSlug($produit->nom);
+            }
+        });
+
+        static::updating(function ($produit) {
+            if ($produit->isDirty('nom') && !$produit->isDirty('slug')) {
+                $produit->slug = static::generateUniqueSlug($produit->nom);
+            }
+        });
+    }
+
+    protected static function generateUniqueSlug($name)
+    {
+        $slug = Str::slug($name);
+        $count = static::where('slug', 'LIKE', "{$slug}%")->count();
+        return $count ? "{$slug}-{$count}" : $slug;
+    }
     // protected $appends = ['favorites_count', 'views_count'];
     
     public function user()
@@ -59,10 +85,7 @@ class Produit extends Model
     }
 
         
-    public function reventes()
-    {
-        return $this->hasMany(Revente::class);
-    }
+
 
   
     public function category()

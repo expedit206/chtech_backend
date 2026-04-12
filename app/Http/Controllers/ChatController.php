@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Services\NotificationService;
 use Illuminate\Support\Facades\Broadcast;
 use App\Services\NotificationTemplateService;
+use App\Notifications\MessageNotification;
 
 class ChatController extends Controller
 {
@@ -32,7 +33,10 @@ class ChatController extends Controller
 
         // 1. Récupérer les ID des interlocuteurs, product_id et la date du dernier message
         // On modifie pour grouper également par `product_id` (Facebook Marketplace style)
-        $rawConvs = Message::selectRaw("
+        $offset = (int) $request->query('offset', 0);
+        $limit = (int) $request->query('limit', 10);
+
+        $rawConvsBase = Message::selectRaw("
                 CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END as interlocutor_id,
                 product_id,
                 MAX(created_at) as last_msg_at
@@ -41,9 +45,16 @@ class ChatController extends Controller
                 $q->where('sender_id', $user->id)
                     ->orWhere('receiver_id', $user->id);
             })
-            ->groupBy('interlocutor_id', 'product_id')
+            ->groupBy('interlocutor_id', 'product_id');
+
+        $rawConvs = (clone $rawConvsBase)
             ->orderBy('last_msg_at', 'desc')
+            ->skip($offset)
+            ->take($limit + 1)
             ->get();
+
+        $hasMoreConvs = $rawConvs->count() > $limit;
+        $rawConvs = $rawConvs->take($limit);
 
         $interlocutorIds = $rawConvs->pluck('interlocutor_id')->unique();
         $productIds = $rawConvs->pluck('product_id')->filter()->unique();
@@ -120,17 +131,27 @@ class ChatController extends Controller
                 $orderStatus = $ordersMap->get($participantId . '_' . $product->id);
             }
 
+            // 7. Déterminer le nom de la conversation (Produit - Client)
+            // On ne doit JAMAIS afficher le nom de l'admin.
+            $isAdminInterlocutor = ($otherUser->role === 'admin' || $otherUser->email === 'aaa@aaa.com');
+            
+            // Le "Client" est celui qui n'est pas l'admin. 
+            // Si l'utilisateur actuel est l'admin, le client est $otherUser.
+            // Si l'utilisateur actuel est le client, le client est $user.
+            $clientName = ($user->role === 'admin' || $user->email === 'aaa@aaa.com') ? $otherUser->nom : $user->nom;
+            
+            $displayName = $product ? ($product->nom . ' - ' . $clientName) : $otherUser->nom;
+
             return [
                 'user_id' => $raw->interlocutor_id,
                 'product_id' => $raw->product_id,
                 'product_name' => $product ? $product->nom : null,
-                'product_slug' => $product ? $product->id : null, // Needed for redirect
+                'product_slug' => $product ? $product->slug : null,
                 'product_image' => $product && !empty($product->photos) ? $product->photos[0] : null,
                 'user_name' => $otherUser->nom,
                 'user_photo' => $otherUser->photo ?? null,
                 'order_status' => $orderStatus,
-                // On garde 'name' et 'profile_photo' comme fallback général, mais l'affichage précis se fera via Vue
-                'name' => $product ? $product->nom : $otherUser->nom,
+                'name' => $displayName,
                 'profile_photo' => $product && !empty($product->photos) ? $product->photos[0] : ($otherUser->photo ?? null),
                 'last_message' => $lastMessage->content ?? '',
                 'last_message_type' => $lastMessage->type ?? 'text',
@@ -160,7 +181,10 @@ class ChatController extends Controller
         // Tri final
         $finalConversations = $conversations->sortByDesc('updated_at')->values();
 
-        return response()->json(['conversations' => $finalConversations]);
+        return response()->json([
+            'conversations' => $finalConversations,
+            'hasMore' => $hasMoreConvs ?? false
+        ]);
     }
 
     /**
@@ -230,7 +254,7 @@ class ChatController extends Controller
                 // Relations manuelles
                 $msg->setRelation('sender', $receiver);
                 $msg->setRelation('receiver', $user);
-                $msg->product = null;
+                $msg->setRelation('product', null);
 
                 return $msg;
             });
@@ -255,7 +279,8 @@ class ChatController extends Controller
         return response()->json([
             'messages' => $finalMessages,
             'hasMore' => $hasMore,
-            'user' => User::find($receiverId),
+            'user' => $receiver,
+            'product' => $productId ? \App\Models\Produit::find($productId) : null
         ]);
     }
 
@@ -343,6 +368,9 @@ class ChatController extends Controller
             }
 
             Log::info('MessageSent diffusé', ['message_id' => $message->id]);
+
+            // NOTIFICATION INTERNE (In-app)
+            $receiver->notify(MessageNotification::make($message, $user));
         } catch (\Exception $e) {
             Log::error('Diffusion échouée : ' . $e->getMessage());
         }
