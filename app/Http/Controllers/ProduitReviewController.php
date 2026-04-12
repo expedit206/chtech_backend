@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Produit;
-use App\Models\Service;
 use Illuminate\Http\Request;
 use App\Models\ProduitReview;
 use Illuminate\Http\JsonResponse;
