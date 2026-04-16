@@ -66,8 +66,8 @@ Route::prefix('produits')->group(function () {
     Route::get('/{produit}', [ProduitController::class, 'show'])->name('produits.show');
     Route::get('/{id}/similar', [ProduitController::class, 'getSimilarProducts']);
     Route::get('/{id}/shop', [ProduitController::class, 'getShopProducts']);
-
     Route::get('/{id}/getReviews', [ProduitReviewController::class, 'index']);
+    Route::get('/{id}/counts', [InteractionController::class, 'getProductInteraction']);
 });
 
 // Public Profiles
@@ -122,7 +122,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('produits')->group(function () {
         Route::post('/{id}/favorite', [FavoriteController::class, 'toggleProduitFavorite'])->name('toggleProduitFavorite');
         Route::post('/{id}/reviews', [ProduitReviewController::class, 'storeProduitReview']);
-        Route::get('/{id}/counts', [InteractionController::class, 'getProductInteraction']);
     });
 
 

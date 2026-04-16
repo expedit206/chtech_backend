@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\CategoryProduit;
-use App\Models\CategoryService;
 use Illuminate\Support\Str;
 use Illuminate\Database\Seeder;
 
@@ -57,11 +56,6 @@ class CategoryProduitSeeder extends Seeder
             );
         }
 
-        foreach ($serviceCategories as $cat) {
-            CategoryService::firstOrCreate(
-                ['nom' => $cat['nom']],
-                ['id' => Str::uuid()]
-            );
-        }
+        
     }
 }
