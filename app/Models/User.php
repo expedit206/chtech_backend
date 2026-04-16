@@ -2,19 +2,20 @@
 // app/Models/User.php
 namespace App\Models;
 
-use App\Models\Boost;
-use App\Models\Message;
 use App\Models\Abonnement;
-use App\Models\Produit;
+use App\Models\Boost;
 use App\Models\DeviceToken;
-use App\Models\Parrainage;
+use App\Models\Message;
 use App\Models\NiveauUser;
-use Laravel\Sanctum\HasApiTokens;
+use App\Models\Parrainage;
+use App\Models\Produit;
 use App\Models\ProduitInteraction;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
+use Str;
 
 class User extends Authenticatable
 {
@@ -42,14 +43,14 @@ class User extends Authenticatable
     }
 
 
-       protected $keyType = 'string';
+    protected $keyType = 'string';
     public $incrementing = false;
 
     protected static function booted()
     {
         static::creating(function ($model) {
             if (empty($model->{$model->getKeyName()})) {
-                $model->{$model->getKeyName()} = (string) \Str::uuid();
+                $model->{$model->getKeyName()} = (string) Str::uuid();
             }
         });
     }
@@ -137,12 +138,12 @@ class User extends Authenticatable
         return $this->hasMany(Message::class, 'sender_id')->distinct('receiver_id')->count('receiver_id');
     }
 
-      //device token
+    //device token
     public function deviceTokens()
     {
         return $this->hasMany(DeviceToken::class);
     }
- 
+
 
 
     public function favoris_count()
@@ -155,30 +156,31 @@ class User extends Authenticatable
     {
         return $this->hasMany(ProduitInteraction::class)->where('type', 'favori');
     }
-    
-    
-    
-    
+
+
+
+
     ///produitFavorites
 
-    public function produitFavorites(){
+    public function produitFavorites()
+    {
         return $this->hasMany(ProduitInteraction::class);
     }
 
     public function hasFavoritedProduit($produitId): bool
     {
         return $this->produitFavorites()
-                    ->where('produit_id', $produitId)
-                    ->where('type', 'favori')
-                    ->exists();
+            ->where('produit_id', $produitId)
+            ->where('type', 'favori')
+            ->exists();
     }
 
     public function removeFavoriteProduit($produitId): bool
     {
         return $this->produitFavorites()
-                    ->where('produit_id', $produitId)
-                    ->where('type', 'favori')
-                    ->delete() > 0;
+            ->where('produit_id', $produitId)
+            ->where('type', 'favori')
+            ->delete() > 0;
     }
 
     public function addFavoriteProduit($produitId)
