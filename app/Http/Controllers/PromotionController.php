@@ -13,8 +13,7 @@ class PromotionController extends Controller
     private const COST_PER_CLICK = 0.2; // 0.2 jetons par clic
     
     // Créer une promotion simplifié    /**
-     * Crée une nouvelle campagne de promotion (MUTED)
-     */
+    
     public function create(Request $request)
     {
         return response()->json([
