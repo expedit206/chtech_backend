@@ -101,6 +101,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/mark-all-as-read', [ChatController::class, 'markAllAsRead']);
     });
     Route::get('/conversations', [ChatController::class, 'conversations']);
+    Route::get('/chat/support-admin', [ChatController::class, 'supportAdmin']);
     Route::get('/chat/{receiverId}', [ChatController::class, 'index']);
     Route::post('/chat/{receiverId}', [ChatController::class, 'store']);
     Route::put('/chat/message/{messageId}', [ChatController::class, 'update']);
@@ -258,6 +259,12 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/stats', [\App\Http\Controllers\Admin\AdminFinanceController::class, 'index']);
             Route::get('/transactions', [\App\Http\Controllers\Admin\AdminFinanceController::class, 'transactions']);
             Route::get('/order-stats', [\App\Http\Controllers\Admin\AdminFinanceController::class, 'orderStats']);
+        });
+
+        // Orders
+        Route::prefix('orders')->group(function () {
+            Route::get('/', [\App\Http\Controllers\OrderController::class, 'adminIndex']);
+            // Note: update status is handled externally via the general orders group
         });
 
         // Chat Broadcast

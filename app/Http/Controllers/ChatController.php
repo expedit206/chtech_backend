@@ -136,12 +136,12 @@ class ChatController extends Controller
 
             // 7. Déterminer le nom de la conversation (Produit - Client)
             // On ne doit JAMAIS afficher le nom de l'admin.
-            $isAdminInterlocutor = ($otherUser->role === 'admin' || $otherUser->email === 'aaa@aaa.com');
+            $isAdminInterlocutor = ($otherUser->role === 'admin');
             
             // Le "Client" est celui qui n'est pas l'admin. 
             // Si l'utilisateur actuel est l'admin, le client est $otherUser.
             // Si l'utilisateur actuel est le client, le client est $user.
-            $clientName = ($user->role === 'admin' || $user->email === 'aaa@aaa.com') ? $otherUser->nom : $user->nom;
+            $clientName = ($user->role === 'admin') ? $otherUser->nom : $user->nom;
             
             $displayName = $product ? ($product->nom . ' - ' . $clientName) : $otherUser->nom;
 
@@ -165,16 +165,16 @@ class ChatController extends Controller
             ];
         })->filter()->values();
 
-        // 8. Logique Service Client (AAAA@aaa.com)
-        $serviceClient = User::where('email', 'aaa@aaa.com')->first();
-        if ($serviceClient) {
+        // 8. Logique Service Client (Premier administrateur)
+        $serviceClient = User::where('role', 'admin')->first();
+        if ($serviceClient && $user->id !== $serviceClient->id) {
             $hasServiceConv = $conversations->contains('user_id', $serviceClient->id);
             if (!$hasServiceConv) {
                 // On l'ajoute par défaut s'il n'existe pas
                 $conversations->push([
                     'user_id' => $serviceClient->id,
-                    'name' => $serviceClient->nom ?? 'Service Client',
-                    'last_message' => 'Écrivez-moi pour tout besoin',
+                    'name' => 'Service Client',
+                    'last_message' => 'Écrivez-nous pour tout besoin',
                     'last_message_type' => 'text',
                     'updated_at' => now(),
                     'unread_count' => 0,
@@ -193,8 +193,18 @@ class ChatController extends Controller
     }
 
     /**
-     * Récupère les messages d'une conversation spécifique (historique paginé)
+     * Récupère l'administrateur par défaut pour le service client.
      */
+    public function supportAdmin()
+    {
+        $admin = User::where('role', 'admin')->first();
+        return response()->json([
+            'success' => true,
+            'admin_id' => $admin ? $admin->id : null,
+            'admin' => $admin
+        ]);
+    }
+
     /**
      * Récupère les messages d'une conversation spécifique (historique paginé)
      */
@@ -232,7 +242,7 @@ class ChatController extends Controller
         $broadcastMessages = collect([]);
         $receiver = User::find($receiverId);
 
-        if ($receiver && ($receiver->role === 'admin' || $receiver->email === 'aaa@aaa.com')) {
+        if ($receiver && $receiver->role === 'admin') {
             // On récupère les broadcasts actifs
             // Idéalement, on filtre ceux créés après l'inscription de l'utilisateur, etc.
             $broadcasts = \App\Models\BroadcastMessage::where('sender_id', $receiverId)

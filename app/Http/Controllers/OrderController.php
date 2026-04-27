@@ -341,5 +341,22 @@ class OrderController extends Controller
             ]
         ]);
     }
+
+    /**
+     * Liste toutes les commandes pour l'administration
+     */
+    public function adminIndex()
+    {
+        $user = Auth::user();
+        if (!$user->isAdmin()) {
+            return response()->json(['message' => 'Accès réservé aux administrateurs'], 403);
+        }
+
+        $orders = Order::with(['user', 'items.produit', 'items.supplier'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json(['success' => true, 'data' => $orders]);
+    }
 }
 
