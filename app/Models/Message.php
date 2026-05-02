@@ -13,16 +13,17 @@ class Message extends Model
     use HasFactory;
 
 
-    protected $fillable = ['sender_id', 'type', 'receiver_id', 'product_id', 'content', 'attachment_url'];
+    protected $fillable = ['sender_id', 'type', 'receiver_id', 'product_id', 'content', 'attachment_url', 'cart_data'];
     // table
     protected $table = 'messages';
 
     protected $casts = [
-        'id' => 'string',
-        'sender_id' => 'string',
+        'id'          => 'string',
+        'sender_id'   => 'string',
         'receiver_id' => 'string',
-        'product_id' => 'string',
-        'is_read' => 'boolean',
+        'product_id'  => 'string',
+        'is_read'     => 'boolean',
+        'cart_data'   => 'array',   // auto JSON encode/decode
     ];
 
 

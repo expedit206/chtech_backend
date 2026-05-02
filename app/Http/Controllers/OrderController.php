@@ -14,7 +14,13 @@ use App\Notifications\OrderNotification;
 class OrderController extends Controller
 {
     /**
-     * L'Admin crée une commande directement depuis le resumé du chat
+     * L'Admin crée une commande depuis le résumé du chat (supporte multi-produits).
+     * 
+     * Payload: {
+     *   user_id: UUID,
+     *   items: [{ product_id: UUID, quantity: int, agreed_price?: float }]
+     * }
+     * Optimisation : une seule requête pour charger TOUS les produits (whereIn).
      */
     public function createFromAdmin(Request $request)
     {
@@ -25,52 +31,103 @@ class OrderController extends Controller
         }
 
         $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'product_id' => 'required|exists:produits,id',
-            'quantity' => 'required|integer|min:1',
-            'agreed_price' => 'numeric|min:0', // Optionnel si on négocie en chat
+            'user_id'              => 'required|exists:users,id',
+            'items'                => 'required|array|min:1|max:50',
+            'items.*.product_id'   => 'required|exists:produits,id',
+            'items.*.quantity'     => 'required|integer|min:1',
+            'items.*.agreed_price' => 'nullable|numeric|min:0',
+            'delivery_address'     => 'nullable|string|max:500',
+            'contact_phone'        => 'nullable|string|max:50',
         ]);
 
         return DB::transaction(function () use ($request) {
-            $product = Produit::findOrFail($request->product_id);
 
-            if ($product->quantite < $request->quantity) {
-                 return response()->json(['message' => "Stock insuffisant pour le produit: {$product->nom}"], 400);
+            // --- 1. Charger tous les produits en UNE seule requête (performance) ---
+            $productIds  = collect($request->items)->pluck('product_id')->unique()->values();
+            $productsMap = Produit::whereIn('id', $productIds)
+                ->lockForUpdate()              // row-level lock pour éviter race condition sur le stock
+                ->get()
+                ->keyBy('id');
+
+            // --- 2. Vérifier le stock pour tous les articles AVANT de toucher à la DB ---
+            $orderItems  = [];
+            $totalAmount = 0;
+
+            foreach ($request->items as $itemData) {
+                /** @var \App\Models\Produit $product */
+                $product = $productsMap->get($itemData['product_id']);
+
+                if (!$product) {
+                    return response()->json(['message' => "Produit {$itemData['product_id']} introuvable"], 404);
+                }
+
+                if ($product->quantite < $itemData['quantity']) {
+                    return response()->json([
+                        'message' => "Stock insuffisant pour : {$product->nom} (disponible : {$product->quantite})"
+                    ], 400);
+                }
+
+                $unitPrice    = $itemData['agreed_price'] ?? $product->prix;
+                $totalAmount += $unitPrice * $itemData['quantity'];
+
+                $orderItems[] = [
+                    'product' => $product,
+                    'quantity'   => $itemData['quantity'],
+                    'unit_price' => $unitPrice,
+                ];
             }
 
-            $unitPrice = $request->has('agreed_price') ? $request->agreed_price : $product->prix;
-            $totalAmount = $unitPrice * $request->quantity;
-
-            // Création de l'entité commande
+            // --- 3. Créer la commande ---
             $order = Order::create([
-                'user_id' => $request->user_id,
-                'total_amount' => $totalAmount,
-                'status' => 'pending', // par défaut, le statut commence
-                'payment_status' => 'paid', // le paiement s'est fait off-platform (mobile money)
-                // Ces champs sont maintenant nullable
-                'delivery_address' => null, 
-                'contact_phone' => null,
+                'user_id'          => $request->user_id,
+                'total_amount'     => $totalAmount,
+                'status'           => 'pending',
+                'payment_status'   => 'paid',
+                'delivery_address' => $request->delivery_address ?? null,
+                'contact_phone'    => $request->contact_phone   ?? null,
             ]);
 
-            // Ajout de l'item à la commande
-            OrderItem::create([
-                'order_id' => $order->id,
-                'produit_id' => $product->id,
-                'supplier_id' => $product->user_id,
-                'quantity' => $request->quantity,
-                'price' => $unitPrice,
-            ]);
+            // --- 4. Insérer tous les order items en BATCH (1 seule requête) + décrémenter stock ---
+            $now           = now();
+            $itemsToInsert = [];
 
-            // Décrémenter le stock
-            $product->decrement('quantite', $request->quantity);
+            foreach ($orderItems as $line) {
+                /** @var \App\Models\Produit $product */
+                $product = $line['product'];
+
+                $itemsToInsert[] = [
+                    'id'          => (string) \Illuminate\Support\Str::uuid(),
+                    'order_id'    => $order->id,
+                    'produit_id'  => $product->id,
+                    'supplier_id' => $product->user_id,
+                    'quantity'    => $line['quantity'],
+                    'price'       => $line['unit_price'],
+                    'created_at'  => $now,
+                    'updated_at'  => $now,
+                ];
+
+                // Décrémenter le stock directement via UPDATE (pas de select N+1)
+                Produit::where('id', $product->id)
+                    ->decrement('quantite', $line['quantity']);
+            }
+
+            // Batch insert : 1 seule requête INSERT pour N articles
+            OrderItem::insert($itemsToInsert);
+
+            // --- 5. Notifier l'acheteur ---
+            $buyer = User::find($request->user_id);
+            if ($buyer) {
+                $buyer->notify(\App\Notifications\OrderNotification::make($order, 'créée'));
+            }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Commande générée avec succès pour le client.',
-                'order' => $order->load('items.produit')
+                'message' => 'Commande multi-articles générée avec succès.',
+                'order'   => $order->load('items.produit'),
             ], 201);
         });
     }
+
     /**
      * Passer une commande (Simulation Escrow incluse)
      */

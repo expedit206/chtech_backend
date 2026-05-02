@@ -144,6 +144,16 @@ class ChatController extends Controller
             $clientName = ($user->role === 'admin') ? $otherUser->nom : $user->nom;
             
             $displayName = $product ? ($product->nom . ' - ' . $clientName) : $otherUser->nom;
+            
+            // Si c'est un message de panier multi-produits, construire le nom du chat à partir des articles
+            if (!$product && $lastMessage && $lastMessage->type === 'cart' && !empty($lastMessage->cart_data)) {
+                $cartItemNames = collect($lastMessage->cart_data)->map(function ($item) {
+                    $name = $item['name'] ?? 'Produit';
+                    return mb_strlen($name) > 20 ? mb_substr($name, 0, 20) . '...' : $name;
+                })->implode(', ');
+                
+                $displayName = '🛍️ ' . $cartItemNames . ' - ' . $clientName;
+            }
 
             return [
                 'user_id' => $raw->interlocutor_id,
@@ -165,23 +175,7 @@ class ChatController extends Controller
             ];
         })->filter()->values();
 
-        // 8. Logique Service Client (Premier administrateur)
-        $serviceClient = User::where('role', 'admin')->first();
-        if ($serviceClient && $user->id !== $serviceClient->id) {
-            $hasServiceConv = $conversations->contains('user_id', $serviceClient->id);
-            if (!$hasServiceConv) {
-                // On l'ajoute par défaut s'il n'existe pas
-                $conversations->push([
-                    'user_id' => $serviceClient->id,
-                    'name' => 'Service Client',
-                    'last_message' => 'Écrivez-nous pour tout besoin',
-                    'last_message_type' => 'text',
-                    'updated_at' => now(),
-                    'unread_count' => 0,
-                    'profile_photo' => $serviceClient->photo ?? null,
-                ]);
-            }
-        }
+        // (Service Client default logic has been removed)
 
         // Tri final
         $finalConversations = $conversations->sortByDesc('updated_at')->values();
@@ -313,13 +307,28 @@ class ChatController extends Controller
             'receiverId' => $receiverId
         ], 404);
 
+        // Handle JSON decoded cart_items from FormData
+        if ($request->has('cart_items') && is_string($request->cart_items)) {
+            try {
+                $request->merge(['cart_items' => json_decode($request->cart_items, true)]);
+            } catch (\Exception $e) {}
+        }
+
         $validated = $request->validate([
-            'type' => 'nullable|string|in:text,audio,image,video',
-            'content' => 'nullable|string|max:1000',
-            'audio' => 'nullable|file|mimes:mp3,wav,ogg,webm|max:10240',
-            'image' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:5120',
-            'video' => 'nullable|file|mimes:mp4,mov,avi,wmv|max:20480', // Max 20MB
+            'type'       => 'nullable|string|in:text,audio,image,video,cart',
+            'content'    => 'nullable|string|max:2000',
+            'audio'      => 'nullable|file|mimes:mp3,wav,ogg,webm|max:10240',
+            'image'      => 'nullable|image|mimes:jpg,jpeg,png,gif|max:5120',
+            'video'      => 'nullable|file|mimes:mp4,mov,avi,wmv|max:20480',
             'product_id' => 'nullable|exists:produits,id',
+            // Cart payload validation
+            'cart_items' => 'nullable|array|max:50',
+            'cart_items.*.productId' => 'required|exists:produits,id',
+            'cart_items.*.quantity'  => 'required|integer|min:1',
+            'cart_items.*.name'      => 'nullable|string',
+            'cart_items.*.priceRaw'  => 'nullable|numeric',
+            'cart_items.*.image'     => 'nullable|string',
+            'cart_items.*.slug'      => 'nullable|string',
         ]);
 
         $message = new Message();
@@ -358,7 +367,9 @@ class ChatController extends Controller
         }
 
         $message->attachment_url = $attachmentUrl;
-        $message->content = $validated['content'] ?? null;
+        $message->content         = $validated['content'] ?? null;
+        // Persist cart payload for type='cart' messages
+        $message->cart_data = isset($validated['cart_items']) ? $validated['cart_items'] : null;
 
         $message->save();
         $message->load('sender', 'receiver', 'product');
@@ -404,19 +415,27 @@ class ChatController extends Controller
         try {
             $userId = Auth::id();
 
-            // Marquer tous les messages non lus comme lus
-            Message::where('receiver_id', $userId)
-                ->where('is_read', false)
-                ->update([
-                    'is_read' => true,
-                    'read_at' => now()
-                ]);
+            $query = Message::where('receiver_id', $userId)->where('is_read', false);
 
-            // Mettre à jour le badge
-            $this->updateMessageBadge($userId, 0);
+            if ($request->has('sender_id')) {
+                $query->where('sender_id', $request->input('sender_id'));
+                
+                if ($request->has('product_id') && $request->input('product_id') !== '' && $request->input('product_id') !== 'null') {
+                    $query->where('product_id', $request->input('product_id'));
+                } else {
+                    $query->whereNull('product_id');
+                }
+            }
 
-            // Optionnel: Émettre un événement pour mise à jour en temps réel
-            // broadcast(new \App\Events\BadgesUpdated($userId, 'messages', 0));
+            // Marquer comme lus
+            $query->update([
+                'is_read' => true,
+                'read_at' => now()
+            ]);
+
+            // Mettre à jour le badge global
+            $unreadCount = Message::where('receiver_id', $userId)->where('is_read', false)->count();
+            $this->updateMessageBadge($userId, $unreadCount);
 
             return response()->json([
                 'success' => true,
