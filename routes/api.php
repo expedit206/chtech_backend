@@ -10,6 +10,7 @@ use App\Http\Controllers\MarketplaceController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ParrainageController;
 use App\Http\Controllers\PasswordResetController;
+use App\Http\Controllers\PlatformReviewController;
 use App\Http\Controllers\ProduitController;
 use App\Http\Controllers\ProduitReviewController;
 use App\Http\Controllers\ProduitUserController;
@@ -85,6 +86,9 @@ Route::get('/subscription/callback', [SubscriptionController::class, 'handleCall
 
 Route::middleware('auth:sanctum')->group(function () {
 
+    Route::post('/reviews', [PlatformReviewController::class, 'store']);
+    Route::get('/reviews/me', [PlatformReviewController::class, 'myReview']);
+    Route::delete('/reviews', [PlatformReviewController::class, 'destroy']);
 
     // User Profile & Settings
     Route::get('/user', [UserController::class, 'profile']);

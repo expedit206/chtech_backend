@@ -15,7 +15,7 @@ class MarketplaceController extends Controller
     public function getProduits(Request $request): JsonResponse
     {
         try {
-            $user = auth()->user();
+            $user = aut h()->user();
             $query = Produit::with(['category', 'user'])
                 ->where('est_actif', true)
                 ->where('quantite', '>', 0);
