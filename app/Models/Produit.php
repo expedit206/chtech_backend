@@ -35,6 +35,7 @@ class Produit extends Model
         'ville',
         'description',
         'prix',
+        'prix_minimum',
         'quantite',
         'note_moyenne',
         'nombre_avis',
