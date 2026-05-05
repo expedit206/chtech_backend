@@ -160,6 +160,8 @@ class ChatController extends Controller
                 'product_id' => $raw->product_id,
                 'product_name' => $product ? $product->nom : null,
                 'product_price' => $product ? $product->prix : null,
+                'product_owner_id' => $product ? $product->user_id : null,
+                'product_min_price' => ($product && ($user->role === 'admin' || $user->id === $product->user_id)) ? $product->prix_minimum : null,
                 'product_slug' => $product ? $product->slug : null,
                 'product_image' => $product && !empty($product->photos) ? $product->photos[0] : null,
                 'user_name' => $otherUser->nom,
@@ -289,7 +291,7 @@ class ChatController extends Controller
             'messages' => $finalMessages,
             'hasMore' => $hasMore,
             'user' => $receiver,
-            'product' => $productId ? \App\Models\Produit::find($productId) : null
+            'product' => $productId ? ($productTemp = \App\Models\Produit::find($productId)) && ($user->role === 'admin' || $user->id === $productTemp->user_id) ? $productTemp->makeVisible(['prix_minimum']) : \App\Models\Produit::select('id', 'nom', 'prix', 'ancien_prix', 'photos', 'slug', 'description', 'category_id', 'quantite', 'ville', 'condition')->find($productId) : null
         ]);
     }
 

@@ -31,7 +31,7 @@ class ProduitUserController extends Controller
             ->orderBy('created_at', 'desc')    // Charger le nombre de vues
             ->get();
         // return response()->json(['produits' => 'produits']);
-        return response()->json(['produits' => $produits]);
+        return response()->json(['produits' => $produits->makeVisible(['prix_minimum'])]);
     }
 
 
@@ -108,7 +108,7 @@ class ProduitUserController extends Controller
 
         ]);
 
-        return response()->json(['produit' => $produit], 201);
+        return response()->json(['produit' => $produit->makeVisible(['prix_minimum'])], 201);
     }
 
 
@@ -213,6 +213,6 @@ class ProduitUserController extends Controller
             'commercant_id' => $request->user()->role === 'admin' ? $validated['commercant_id'] : null,
         ]);
 
-        return response()->json(['produit' => $produit], 200);
+        return response()->json(['produit' => $produit->makeVisible(['prix_minimum'])], 200);
     }
 }

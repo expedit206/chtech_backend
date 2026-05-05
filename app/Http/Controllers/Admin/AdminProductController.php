@@ -26,6 +26,7 @@ class AdminProductController extends Controller
 
         $produits = $query->orderBy('created_at', 'desc')->paginate(20);
 
+        $produits->getCollection()->makeVisible(['prix_minimum']);
         return response()->json($produits);
     }
 

@@ -100,7 +100,7 @@ class ProduitController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'produit' => $produit,
+                    'produit' => ($user && ($user->role === 'admin' || $user->id === $produit->user_id)) ? $produit->makeVisible(['prix_minimum']) : $produit,
                     'isFavorited' => $isFavorited,
                     'counts' => $interactionCounts,
                     'statistics' => [

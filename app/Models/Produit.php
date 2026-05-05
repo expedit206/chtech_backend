@@ -49,6 +49,9 @@ class Produit extends Model
         'original_user_id',
         'commercant_id',
     ];
+    protected $hidden = [
+        'prix_minimum',
+    ];
 
     protected static function boot()
     {
