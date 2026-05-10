@@ -293,5 +293,12 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('/{id}', [\App\Http\Controllers\Admin\PartenaireController::class, 'update']);
             Route::delete('/{id}', [\App\Http\Controllers\Admin\PartenaireController::class, 'destroy']);
         });
+        
+        // Platform Reviews (Administration)
+        Route::prefix('platform-reviews')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\AdminPlatformReviewController::class, 'index']);
+            Route::get('/{id}', [\App\Http\Controllers\Admin\AdminPlatformReviewController::class, 'show']);
+            Route::delete('/{id}', [\App\Http\Controllers\Admin\AdminPlatformReviewController::class, 'destroy']);
+        });
     });
 });

@@ -20,20 +20,17 @@ class PlatformReviewController extends Controller
             ]);
 
             $user = $request->user();
+
             // Vérifier si l'utilisateur a déjà laissé un avis cette semaine
             $existingReview = PlatformReview::where('user_id', $user->id)
-            ->where('created_at', '>=', now()->subDays(7))
-            ->first();
-            
+                ->where('created_at', '>=', now()->subDays(7))
+                ->first();
+
             if ($existingReview) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Vous pouvez laisser qu\'un avis par semaine'
-                ], 422);
-                return response()->json([
-                                'success' => false,
-                                'message' => 'Vous pouvez laisser qu\'un avis par semaine'
-                            ], 400);
+                ],422);
             }
 
             // Créer l'avis
