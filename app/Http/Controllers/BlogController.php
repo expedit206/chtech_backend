@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Post;
 use App\Models\BlogComment;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 
 class BlogController extends Controller
 {
@@ -113,20 +114,16 @@ class BlogController extends Controller
             'content.required' => "Le contenu est obligatoire.",
         ]);
 
-        $imageUrl = $request->has('image') && is_string($request->image) ? $request->image : null;
+        $imageUrl = is_string($request->input('image')) ? $request->input('image') : null;
         if ($request->hasFile('image')) {
-            $file = $request->file('image');
-            $filename = time() . '_img_' . $file->getClientOriginalName();
-            $file->move(public_path('storage/blog'), $filename);
-            $imageUrl = asset('storage/blog/' . $filename);
+            $path = $request->file('image')->store('blog', 'public');
+            $imageUrl = $path;
         }
 
-        $videoUrl = $request->has('video') && is_string($request->video) ? $request->video : null;
+        $videoUrl = is_string($request->input('video')) ? $request->input('video') : null;
         if ($request->hasFile('video')) {
-            $file = $request->file('video');
-            $filename = time() . '_vid_' . $file->getClientOriginalName();
-            $file->move(public_path('storage/blog/videos'), $filename);
-            $videoUrl = asset('storage/blog/videos/' . $filename);
+            $path = $request->file('video')->store('blog/videos', 'public');
+            $videoUrl = $path;
         }
 
         $title = $request->input('title') ?? $request->input('titre');
@@ -197,21 +194,17 @@ class BlogController extends Controller
         ]);
 
         if ($request->hasFile('image')) {
-            $file = $request->file('image');
-            $filename = time() . '_img_' . $file->getClientOriginalName();
-            $file->move(public_path('storage/blog'), $filename);
-            $post->image = asset('storage/blog/' . $filename);
-        } else if ($request->has('image') && is_string($request->image)) {
-            $post->image = $request->image;
+            $path = $request->file('image')->store('blog', 'public');
+            $post->image = $path;
+        } else if ($request->has('image') && is_string($request->input('image'))) {
+            $post->image = $request->input('image');
         }
 
         if ($request->hasFile('video')) {
-            $file = $request->file('video');
-            $filename = time() . '_vid_' . $file->getClientOriginalName();
-            $file->move(public_path('storage/blog/videos'), $filename);
-            $post->video = asset('storage/blog/videos/' . $filename);
-        } else if ($request->has('video') && is_string($request->video)) {
-            $post->video = $request->video;
+            $path = $request->file('video')->store('blog/videos', 'public');
+            $post->video = $path;
+        } else if ($request->has('video') && is_string($request->input('video'))) {
+            $post->video = $request->input('video');
         }
 
         if ($request->has('title')) $post->title = $request->input('title');
@@ -294,17 +287,24 @@ class BlogController extends Controller
      */
     public function storeComment(Request $request, $slug)
     {
+
+      
         $request->validate([
             'content' => 'required|string|max:1000'
         ]);
 
         $post = Post::where('slug', $slug)->firstOrFail();
         
+    
         $comment = $post->comments()->create([
             'user_id' => $request->user()->getAuthIdentifier(),
             'content' => $request->input('content')
         ]);
-        
+    //         return response()->json([
+    //     'success' => true,
+    //     //'data' => $comment
+    //     'data' => $request->input('content')
+    // ], 201);
         $comment->load('user');
 
         return response()->json([

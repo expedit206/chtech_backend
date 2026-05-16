@@ -191,7 +191,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Blog Interactions
     Route::prefix('blog')->group(function () {
-        Route::post('/posts/{slug}/comments', [\App\Http\Controllers\BlogController::class, 'storeComment']);
+        Route::post('/posts/{slug}/storeComments', [\App\Http\Controllers\BlogController::class, 'storeComment']);
         Route::post('/posts/{slug}/like', [\App\Http\Controllers\BlogController::class, 'toggleLike']);
     });
 
@@ -279,6 +279,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('blog')->group(function () {
             Route::get('/posts', [BlogController::class, 'adminIndex']);
             Route::post('/posts', [BlogController::class, 'store']);
+            // Route::post('/posts/{slug}', [BlogController::class, '']);
             Route::post('/posts/{id}', [BlogController::class, 'update']);
             Route::delete('/posts/{id}', [BlogController::class, 'destroy']);
             Route::patch('/posts/{id}/toggle-publish', [BlogController::class, 'togglePublish']);

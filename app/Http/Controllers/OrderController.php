@@ -235,9 +235,12 @@ class OrderController extends Controller
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        // Seul l'administrateur peut changer le statut des commandes dans ce flux sécurisé
+        // Admin peut tout faire.
+        // L'acheteur peut seulement passer le statut de 'shipped' à 'delivered'.
         if (!$user->isAdmin()) {
-            return response()->json(['message' => 'Accès réservé aux administrateurs'], 403);
+            if ($order->user_id !== $user->id || $request->status !== 'delivered' || $order->status !== 'shipped') {
+                return response()->json(['message' => 'Accès conditionnel réservé aux administrateurs'], 403);
+            }
         }
 
         $request->validate([
