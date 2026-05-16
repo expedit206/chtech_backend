@@ -192,6 +192,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Blog Interactions
     Route::prefix('blog')->group(function () {
         Route::post('/posts/{slug}/storeComments', [\App\Http\Controllers\BlogController::class, 'storeComment']);
+        Route::put('/posts/{slug}/comments/{id}', [\App\Http\Controllers\BlogController::class, 'updateComment']);
+        Route::delete('/posts/{slug}/comments/{id}', [\App\Http\Controllers\BlogController::class, 'destroyComment']);
         Route::post('/posts/{slug}/like', [\App\Http\Controllers\BlogController::class, 'toggleLike']);
     });
 
@@ -279,7 +281,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('blog')->group(function () {
             Route::get('/posts', [BlogController::class, 'adminIndex']);
             Route::post('/posts', [BlogController::class, 'store']);
-            // Route::post('/posts/{slug}', [BlogController::class, '']);
             Route::post('/posts/{id}', [BlogController::class, 'update']);
             Route::delete('/posts/{id}', [BlogController::class, 'destroy']);
             Route::patch('/posts/{id}/toggle-publish', [BlogController::class, 'togglePublish']);
@@ -294,7 +295,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('/{id}', [\App\Http\Controllers\Admin\PartenaireController::class, 'update']);
             Route::delete('/{id}', [\App\Http\Controllers\Admin\PartenaireController::class, 'destroy']);
         });
-        
+
         // Platform Reviews (Administration)
         Route::prefix('platform-reviews')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\AdminPlatformReviewController::class, 'index']);

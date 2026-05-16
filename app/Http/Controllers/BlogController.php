@@ -16,13 +16,13 @@ class BlogController extends Controller
     public function index(Request $request)
     {
         $limit = $request->get('limit', 10);
-        
+
         $posts = Post::with(['author'])
             ->withCount(['comments', 'likes'])
             ->where('is_published', true)
             ->latest('published_at')
             ->paginate($limit);
-            
+
         return response()->json([
             'success' => true,
             'data' => $posts
@@ -39,15 +39,15 @@ class BlogController extends Controller
             ->where('slug', $slug)
             ->where('is_published', true)
             ->firstOrFail();
-            
+
         // Check if user liked post
         if (auth('sanctum')->check()) {
             $post->is_liked = $post->isLikedBy(auth('sanctum')->user());
         }
-            
+
         // Increment views
         $post->increment('views_count');
-        
+
         return response()->json([
             'success' => true,
             'data' => $post
@@ -64,7 +64,7 @@ class BlogController extends Controller
             ->withCount(['comments', 'likes'])
             ->latest()
             ->paginate($limit);
-            
+
         return response()->json([
             'success' => true,
             'data' => $posts
@@ -82,7 +82,10 @@ class BlogController extends Controller
             'excerpt' => 'nullable|string',
             'is_published' => 'sometimes'
         ];
-
+//   return response()->json([
+//             'success' => true,
+//             'data' => $request->all()
+//         ], 201);
         // Advanced image validation: handle both file and URL string
         $imageRules = ['nullable'];
         if ($request->hasFile('image')) {
@@ -116,7 +119,14 @@ class BlogController extends Controller
 
         $imageUrl = is_string($request->input('image')) ? $request->input('image') : null;
         if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('blog', 'public');
+
+
+            $file = $request->file('image');
+            $filename = time() . '_' . $file->getClientOriginalName();
+
+            $file->move(public_path('storage/blog'), $filename); // Enregistre dans public/uploads
+
+            $path = 'blog/' . $filename;
             $imageUrl = $path;
         }
 
@@ -158,7 +168,7 @@ class BlogController extends Controller
     public function update(Request $request, $id)
     {
         $post = Post::findOrFail($id);
-        
+
         $rules = [
             'title' => 'nullable|string|max:255',
             'content' => 'nullable|string',
@@ -194,15 +204,29 @@ class BlogController extends Controller
         ]);
 
         if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('blog', 'public');
-            $post->image = $path;
+            // Supprimer l'ancienne image si elle existe
+            if ($post->image && file_exists(public_path('storage/'.$post->image))) {
+                unlink(public_path('storage/'.$post->image));
+            }
+
+            $file = $request->file('image');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $file->move(public_path('storage/blog'), $filename);
+            $post->image = 'blog/' . $filename;
         } else if ($request->has('image') && is_string($request->input('image'))) {
             $post->image = $request->input('image');
         }
 
         if ($request->hasFile('video')) {
-            $path = $request->file('video')->store('blog/videos', 'public');
-            $post->video = $path;
+            // Supprimer l'ancienne vidéo si elle existe
+            if ($post->video && file_exists(public_path($post->video))) {
+                unlink(public_path($post->video));
+            }
+
+            $file = $request->file('video');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $file->move(public_path('storage/blog/videos'), $filename);
+            $post->video = 'storage/blog/videos/' . $filename;
         } else if ($request->has('video') && is_string($request->input('video'))) {
             $post->video = $request->input('video');
         }
@@ -215,7 +239,7 @@ class BlogController extends Controller
 
         if ($request->has('excerpt')) $post->excerpt = $request->input('excerpt');
         else if ($request->has('extrait')) $post->excerpt = $request->input('extrait');
-        
+
         if ($request->has('is_published')) {
             $isPublished = filter_var($request->is_published, FILTER_VALIDATE_BOOLEAN);
             if (!$post->is_published && $isPublished) {
@@ -243,7 +267,7 @@ class BlogController extends Controller
             $post->published_at = now();
         }
         $post->save();
-        
+
         return response()->json([
             'success' => true,
             'data' => $post
@@ -257,7 +281,7 @@ class BlogController extends Controller
     {
         $post = Post::findOrFail($id);
         $post->delete();
-        
+
         return response()->json([
             'success' => true,
             'message' => 'Article supprimé'
@@ -270,12 +294,12 @@ class BlogController extends Controller
     public function getComments($slug)
     {
         $post = Post::where('slug', $slug)->firstOrFail();
-        
+
         $comments = $post->comments()
             ->with('user')
             ->latest()
             ->paginate(20);
-            
+
         return response()->json([
             'success' => true,
             'data' => $comments
@@ -288,14 +312,14 @@ class BlogController extends Controller
     public function storeComment(Request $request, $slug)
     {
 
-      
+
         $request->validate([
             'content' => 'required|string|max:1000'
         ]);
 
         $post = Post::where('slug', $slug)->firstOrFail();
-        
-    
+
+
         $comment = $post->comments()->create([
             'user_id' => $request->user()->getAuthIdentifier(),
             'content' => $request->input('content')
@@ -311,6 +335,54 @@ class BlogController extends Controller
             'success' => true,
             'data' => $comment
         ], 201);
+    }
+
+    public function updateComment(Request $request, $slug, $id)
+    {
+        $request->validate([
+            'content' => 'required|string|max:1000'
+        ]);
+
+        $comment = \App\Models\BlogComment::findOrFail($id);
+
+        if ($comment->user_id !== $request->user()->getAuthIdentifier()) {
+            return response()->json(['message' => 'Non autorisé'], 403);
+        }
+
+        $comment->content = $request->input('content');
+        $comment->save();
+
+        return response()->json([
+            'success' => true,
+            'data' => $comment
+        ]);
+    }
+
+    public function destroyComment(Request $request, $slug, $id)
+    {
+        $comment = \App\Models\BlogComment::findOrFail($id);
+
+        if ($comment->user_id !== $request->user()->getAuthIdentifier()) {
+            return response()->json(['message' => 'Non autorisé'], 403);
+        }
+
+        $comment->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Commentaire supprimé'
+        ]);
+    }
+    
+    public function deleteComment($id)
+    {
+        $comment = \App\Models\BlogComment::findOrFail($id);
+        $comment->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Commentaire supprimé'
+        ]);
     }
 
     /**
@@ -346,7 +418,7 @@ class BlogController extends Controller
     public function search(Request $request)
     {
         $query = $request->get('q', '');
-        
+
         if (!$query || strlen($query) < 2) {
             return response()->json([
                 'success' => true,
