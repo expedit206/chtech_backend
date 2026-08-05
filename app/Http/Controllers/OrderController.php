@@ -6,6 +6,9 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Produit;
 use App\Models\User;
+use App\Models\PromoCode;
+use App\Models\PromoCodeUsage;
+use App\Models\Commission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -38,6 +41,7 @@ class OrderController extends Controller
             'items.*.agreed_price' => 'nullable|numeric|min:0',
             'delivery_address'     => 'nullable|string|max:500',
             'contact_phone'        => 'nullable|string|max:50',
+            'promo_code'           => 'nullable|string',
         ]);
 
         return DB::transaction(function () use ($request) {
@@ -51,7 +55,7 @@ class OrderController extends Controller
 
             // --- 2. Vérifier le stock pour tous les articles AVANT de toucher à la DB ---
             $orderItems  = [];
-            $totalAmount = 0;
+            $subtotalAmount = 0;
 
             foreach ($request->items as $itemData) {
                 /** @var \App\Models\Produit $product */
@@ -67,27 +71,78 @@ class OrderController extends Controller
                     ], 400);
                 }
 
-                $unitPrice    = $itemData['agreed_price'] ?? $product->prix;
-                $totalAmount += $unitPrice * $itemData['quantity'];
+                $unitPrice       = $itemData['agreed_price'] ?? $product->prix;
+                $subtotalAmount += $unitPrice * $itemData['quantity'];
 
                 $orderItems[] = [
-                    'product' => $product,
-                    'quantity'   => $itemData['quantity'],
+                    'product'  => $product,
+                    'quantity' => $itemData['quantity'],
                     'unit_price' => $unitPrice,
                 ];
             }
 
+            // --- 2.5 Traiter le Code Promo si présent ---
+            $appliedPromo = null;
+            $discountAmount = 0;
+            $commissionAmount = 0;
+            $buyer = User::find($request->user_id);
+
+            if ($request->filled('promo_code')) {
+                $codeStr = strtoupper(trim($request->promo_code));
+                $appliedPromo = PromoCode::where('code', $codeStr)->first();
+
+                if ($appliedPromo) {
+                    $check = $appliedPromo->isValidFor($buyer, $subtotalAmount);
+                    if (!$check['valid']) {
+                        return response()->json(['message' => $check['message']], 422);
+                    }
+                    $discountAmount = $appliedPromo->calculateDiscount($subtotalAmount);
+                    $commissionAmount = $appliedPromo->calculateCommission(max(0, $subtotalAmount - $discountAmount));
+                }
+            }
+
+            $finalTotalAmount = max(0, $subtotalAmount - $discountAmount);
+
             // --- 3. Créer la commande ---
             $order = Order::create([
                 'user_id'          => $request->user_id,
-                'total_amount'     => $totalAmount,
+                'total_amount'     => $finalTotalAmount,
                 'status'           => 'pending',
                 'payment_status'   => 'paid',
                 'delivery_address' => $request->delivery_address ?? null,
                 'contact_phone'    => $request->contact_phone   ?? null,
+                'promo_code_id'    => $appliedPromo ? $appliedPromo->id : null,
+                'promo_code'       => $appliedPromo ? $appliedPromo->code : null,
+                'discount_amount'  => $discountAmount,
+                'commission_amount' => $commissionAmount,
             ]);
 
-            // --- 4. Insérer tous les order items en BATCH (1 seule requête) + décrémenter stock ---
+            // --- 3.5 Enregistrer l'utilisation du code promo et la commission ---
+            if ($appliedPromo) {
+                $appliedPromo->increment('used_count');
+
+                $usage = PromoCodeUsage::create([
+                    'promo_code_id' => $appliedPromo->id,
+                    'order_id' => $order->id,
+                    'user_id' => $request->user_id,
+                    'discount_amount' => $discountAmount,
+                    'commission_amount' => $commissionAmount,
+                ]);
+
+                if ($appliedPromo->user_id && $commissionAmount > 0) {
+                    Commission::create([
+                        'user_id' => $appliedPromo->user_id,
+                        'promo_code_id' => $appliedPromo->id,
+                        'order_id' => $order->id,
+                        'promo_code_usage_id' => $usage->id,
+                        'amount' => $commissionAmount,
+                        'status' => 'credited', // Commande créée par admin payée
+                        'notes' => "Commission pour la commande #{$order->id}",
+                    ]);
+                }
+            }
+
+            // --- 4. Insérer tous les order items en BATCH + décrémenter stock ---
             $now           = now();
             $itemsToInsert = [];
 
@@ -106,16 +161,13 @@ class OrderController extends Controller
                     'updated_at'  => $now,
                 ];
 
-                // Décrémenter le stock directement via UPDATE (pas de select N+1)
                 Produit::where('id', $product->id)
                     ->decrement('quantite', $line['quantity']);
             }
 
-            // Batch insert : 1 seule requête INSERT pour N articles
             OrderItem::insert($itemsToInsert);
 
             // --- 5. Notifier l'acheteur ---
-            $buyer = User::find($request->user_id);
             if ($buyer) {
                 $buyer->notify(\App\Notifications\OrderNotification::make($order, 'créée'));
             }
@@ -139,10 +191,11 @@ class OrderController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
             'delivery_address' => 'required|string',
             'contact_phone' => 'required|string',
+            'promo_code' => 'nullable|string',
         ]);
 
         return DB::transaction(function () use ($request) {
-            $totalAmount = 0;
+            $subtotalAmount = 0;
             $orderItems = [];
 
             foreach ($request->items as $itemData) {
@@ -153,7 +206,7 @@ class OrderController extends Controller
                 }
 
                 $itemPrice = $product->prix * $itemData['quantity'];
-                $totalAmount += $itemPrice;
+                $subtotalAmount += $itemPrice;
 
                 $orderItems[] = [
                     'produit_id' => $product->id,
@@ -166,14 +219,64 @@ class OrderController extends Controller
                 $product->decrement('quantite', $itemData['quantity']);
             }
 
+            // Traitement Code Promo
+            $appliedPromo = null;
+            $discountAmount = 0;
+            $commissionAmount = 0;
+            $buyer = Auth::user();
+
+            if ($request->filled('promo_code')) {
+                $codeStr = strtoupper(trim($request->promo_code));
+                $appliedPromo = PromoCode::where('code', $codeStr)->first();
+
+                if ($appliedPromo) {
+                    $check = $appliedPromo->isValidFor($buyer, $subtotalAmount);
+                    if (!$check['valid']) {
+                        throw new \Exception($check['message']);
+                    }
+                    $discountAmount = $appliedPromo->calculateDiscount($subtotalAmount);
+                    $commissionAmount = $appliedPromo->calculateCommission(max(0, $subtotalAmount - $discountAmount));
+                }
+            }
+
+            $finalTotalAmount = max(0, $subtotalAmount - $discountAmount);
+
             $order = Order::create([
                 'user_id' => Auth::id(),
-                'total_amount' => $totalAmount,
+                'total_amount' => $finalTotalAmount,
                 'status' => 'pending',
                 'payment_status' => 'escrow', // Simulation : l'argent est bloqué
                 'delivery_address' => $request->delivery_address,
                 'contact_phone' => $request->contact_phone,
+                'promo_code_id' => $appliedPromo ? $appliedPromo->id : null,
+                'promo_code' => $appliedPromo ? $appliedPromo->code : null,
+                'discount_amount' => $discountAmount,
+                'commission_amount' => $commissionAmount,
             ]);
+
+            if ($appliedPromo) {
+                $appliedPromo->increment('used_count');
+
+                $usage = PromoCodeUsage::create([
+                    'promo_code_id' => $appliedPromo->id,
+                    'order_id' => $order->id,
+                    'user_id' => Auth::id(),
+                    'discount_amount' => $discountAmount,
+                    'commission_amount' => $commissionAmount,
+                ]);
+
+                if ($appliedPromo->user_id && $commissionAmount > 0) {
+                    Commission::create([
+                        'user_id' => $appliedPromo->user_id,
+                        'promo_code_id' => $appliedPromo->id,
+                        'order_id' => $order->id,
+                        'promo_code_usage_id' => $usage->id,
+                        'amount' => $commissionAmount,
+                        'status' => 'pending', // En attente jusqu'à la livraison (payment_status == paid)
+                        'notes' => "Commission pour la commande #{$order->id}",
+                    ]);
+                }
+            }
 
             foreach ($orderItems as $item) {
                 $item['order_id'] = $order->id;
@@ -187,8 +290,9 @@ class OrderController extends Controller
             }
 
             // NOTIFIER L'ACHETEUR
-            $buyer = Auth::user();
-            $buyer->notify(OrderNotification::make($order, 'reçue (en attente)'));
+            if ($buyer) {
+                $buyer->notify(OrderNotification::make($order, 'reçue (en attente)'));
+            }
 
             return response()->json([
                 'success' => true,
@@ -204,11 +308,11 @@ class OrderController extends Controller
     public function index()
     {
         $orders = Order::where('user_id', Auth::id())
-            ->with('items.produit')
+            // ->with('items.produit')
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return response()->json(['success' => true, 'data' => $orders]);
+        return response()->json(['success' => Auth::id(), 'data' => $orders]);
     }
 
     /**
@@ -252,6 +356,7 @@ class OrderController extends Controller
         // Simulation Escrow : Si livré, le paiement passe de 'escrow' à 'paid'
         if ($request->status === 'delivered') {
             $order->payment_status = 'paid';
+            Commission::where('order_id', $order->id)->where('status', 'pending')->update(['status' => 'credited']);
         }
 
         $order->save();

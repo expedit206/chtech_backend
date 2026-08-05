@@ -191,4 +191,14 @@ class User extends Authenticatable
             'type' => 'favori',
         ]);
     }
+
+    public function promoCodes()
+    {
+        return $this->hasMany(PromoCode::class);
+    }
+
+    public function commissions()
+    {
+        return $this->hasMany(Commission::class);
+    }
 }

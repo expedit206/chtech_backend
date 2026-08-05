@@ -21,6 +21,16 @@ class Order extends Model
         'payment_status',
         'delivery_address',
         'contact_phone',
+        'promo_code_id',
+        'promo_code',
+        'discount_amount',
+        'commission_amount',
+    ];
+
+    protected $casts = [
+        'total_amount' => 'float',
+        'discount_amount' => 'float',
+        'commission_amount' => 'float',
     ];
 
     protected static function booted()
@@ -40,5 +50,20 @@ class Order extends Model
     public function items()
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function promoCode()
+    {
+        return $this->belongsTo(PromoCode::class);
+    }
+
+    public function promoCodeUsage()
+    {
+        return $this->hasOne(PromoCodeUsage::class);
+    }
+
+    public function commissions()
+    {
+        return $this->hasMany(Commission::class);
     }
 }

@@ -23,14 +23,20 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\WalletController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Admin\AdminPromoCodeController;
+use App\Http\Controllers\PromoCodeController;
+use App\Http\Controllers\UserCommissionController;
+
 /*
 |--------------------------------------------------------------------------
 | Public Routes
 |--------------------------------------------------------------------------
 */
 
+// Validation code promo (Public / Panier / Checkout)
+Route::post('/promo-codes/validate', [PromoCodeController::class, 'validateCode']);
+
 // Authentication
-Route::post('/login', [AuthController::class, 'login']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/password/generate-token', [PasswordResetController::class, 'generateResetToken']);
@@ -215,12 +221,31 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/{id}/status', [App\Http\Controllers\OrderController::class, 'updateStatus']);
     });
 
+    // User Ambassadeur Codes Promo & Commissions
+    Route::get('/user/promo-codes', [UserCommissionController::class, 'myPromoCodes']);
+    Route::get('/user/commissions', [UserCommissionController::class, 'myCommissions']);
+
     /*
     |--------------------------------------------------------------------------
     | Admin Routes
     |--------------------------------------------------------------------------
     */
     Route::prefix('admin')->middleware('admin')->group(function () {
+        // Promo Codes Management
+        Route::prefix('promo-codes')->group(function () {
+            Route::get('/', [AdminPromoCodeController::class, 'index']);
+            Route::post('/', [AdminPromoCodeController::class, 'store']);
+            Route::get('/{id}', [AdminPromoCodeController::class, 'show']);
+            Route::put('/{id}', [AdminPromoCodeController::class, 'update']);
+            Route::patch('/{id}/toggle', [AdminPromoCodeController::class, 'toggleStatus']);
+            Route::delete('/{id}', [AdminPromoCodeController::class, 'destroy']);
+        });
+
+        // Commissions Management
+        Route::prefix('commissions')->group(function () {
+            Route::get('/', [AdminPromoCodeController::class, 'commissions']);
+            Route::put('/{id}/status', [AdminPromoCodeController::class, 'updateCommissionStatus']);
+        });
         // Vendeur Requests
         Route::prefix('vendeur-requests')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\SupplierRequestController::class, 'index']);
