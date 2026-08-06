@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('promo_code_id')->constrained('promo_codes')->onDelete('cascade');
             $table->uuid('order_id'); // Order id in chtech uses string/uuid
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade'); // Le client acheteur
+            $table->foreignUuid('user_id')->constrained('users')->onDelete('cascade'); // Le client acheteur
             $table->decimal('discount_amount', 10, 2);
             $table->decimal('commission_amount', 10, 2)->default(0);
             $table->timestamps();

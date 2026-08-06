@@ -13,7 +13,10 @@ return new class extends Migration
     {
         Schema::create('commissions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade'); // L'ambassadeur / bénéficiaire
+            $table->foreignUuid('user_id')
+      ->constrained('users')
+      ->cascadeOnDelete();
+            // $table->foreignId('user_id')->constrained('users')->onDelete('cascade'); // L'ambassadeur / bénéficiaire
             $table->foreignId('promo_code_id')->nullable()->constrained('promo_codes')->onDelete('set null');
             $table->uuid('order_id')->nullable();
             $table->foreignId('promo_code_usage_id')->nullable()->constrained('promo_code_usages')->onDelete('cascade');

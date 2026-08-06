@@ -15,8 +15,11 @@ return new class extends Migration
             $table->id();
             $table->string('code')->unique();
             $table->text('description')->nullable();
-            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null'); // Propriétaire / Ambassadeur
-            
+            // $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null'); // Propriétaire / Ambassadeur
+$table->foreignUuid('user_id')
+      ->nullable()
+      ->constrained('users')
+      ->nullOnDelete();            
             // Réduction pour le client
             $table->enum('discount_type', ['percentage', 'fixed_amount'])->default('percentage');
             $table->decimal('discount_value', 10, 2);
